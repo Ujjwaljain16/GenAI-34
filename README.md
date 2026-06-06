@@ -1,13 +1,13 @@
 # LearnGraph AI
 
-**LearnGraph AI** is an AI-powered adaptive learning intelligence platform that creates personalized Data Structures & Algorithms (DSA) learning journeys. Instead of providing static content, it dynamically models a learner's mastery, retention, and misconceptions to continuously generate customized curricula, lessons, and tutoring experiences.
+**LearnGraph AI** is an AI-powered adaptive learning intelligence platform that transforms any uploaded PDF textbook into a personalized, dynamic learning journey. Instead of providing static content, it automatically extracts a knowledge graph of concepts and prerequisites, and dynamically models a learner's mastery, retention, and misconceptions to continuously generate customized curricula, lessons, and tutoring experiences.
 
 > *The core innovation is not content generation. The core innovation is persistent learner modeling.*
 
 ## Features
 
 - **Adaptive Diagnostic Assessment**: Dynamically assesses baseline knowledge and generates a personalized **Learning DNA Report**.
-- **Knowledge Graph Engine (Neo4j)**: Represents 19 core DSA concepts, prerequisite dependencies, and continuous learner topological states.
+- **Knowledge Graph Extraction (Neo4j)**: Automatically parses uploaded PDFs to extract core concepts and prerequisite dependencies, representing continuous learner topological states.
 - **Socratic AI Tutor**: Gemini 2.5 Flash-powered tutor that provides structured hint levels (1-4) without simply giving away the answer, remembering past errors across sessions.
 - **Dynamic Curriculum Generation**: Continually replans learning paths based on demonstrated mastery and concept prerequisites.
 - **Persistent Learner Model**: Tracks mastery (0.0 to 1.0), retention decay, Bloom's taxonomy targets, and specific categorized misconceptions.
@@ -29,10 +29,9 @@ The architecture follows a modular monolith approach utilizing:
 ├── AGENT.md              # Single source of truth & architecture constraints
 ├── README.md             # You are here
 ├── backend/              
-│   ├── api/              # FastAPI route definitions & OpenAPI specs
-│   └── db/               # PostgreSQL schema & Neo4j cypher queries
-├── promptLib/            # Version-controlled Gemini prompt specifications
-└── techdoc/              # Technical Requirements Documents (TRD) & Architecture
+│   ├── app/              # FastAPI application (routes, models, services)
+│   └── db/               # PostgreSQL schema & database configurations
+└── docs/                 # Active Architecture, UI specs, and Prompt Library
 ```
 
 ## System Requirements
@@ -68,10 +67,10 @@ Simply point the environment variables on Render/Vercel to the managed database 
 ## Architecture & Contribution Guidelines
 
 All contributors must strictly adhere to the rules outlined in **[AGENT.md](./AGENT.md)**.
-- **Document Precedence:** `schema.sql` > `openapi.yaml` > `core_queries.cypher` > `mastery_engine.md` > `AGENT.md`.
+- **Document Precedence:** `docs/architecture/system_design.md` > `docs/architecture/ingestion_pipeline.md` > `docs/architecture/mastery_engine.md` > `AGENT.md`.
 - No direct mutations to the database schema in production; all changes require migrations.
 - The AI never decides system state (Neo4j and Postgres own state).
-- All AI prompts are versioned and stored in `/promptLib`.
+- All AI prompts are versioned and stored in `docs/prompts/`.
 
 ---
 
