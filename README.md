@@ -1,6 +1,6 @@
-# LearnGraph AI
+# Lexis AI
 
-**LearnGraph AI** is an AI-powered adaptive learning intelligence platform that transforms any uploaded PDF textbook into a personalized, dynamic learning journey. Instead of providing static content, it automatically extracts a knowledge graph of concepts and prerequisites, and dynamically models a learner's mastery, retention, and misconceptions to continuously generate customized curricula, lessons, and tutoring experiences.
+**Lexis AI** is an AI-powered adaptive learning intelligence platform that transforms any uploaded PDF textbook into a personalized, dynamic learning journey. Instead of providing static content, it automatically extracts a knowledge graph of concepts and prerequisites, and dynamically models a learner's mastery, retention, and misconceptions to continuously generate customized curricula, lessons, and tutoring experiences.
 
 > *The core innovation is not content generation. The core innovation is persistent learner modeling.*
 

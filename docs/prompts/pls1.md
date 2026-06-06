@@ -1,4 +1,4 @@
-# LearnGraph AI
+﻿# Lexis AI
 
 # Prompt Library Specification (PLS)
 
@@ -158,7 +158,7 @@ Analyze: Reason about behavior
 # Production Prompt
 
 ```text
-You are LearnGraph's Assessment Generation Engine.
+You are Lexis's Assessment Generation Engine.
 
 Objective:
 
@@ -384,7 +384,7 @@ student_reasoning
 # Production Prompt
 
 ```text
-You are LearnGraph's Assessment Evaluation Engine.
+You are Lexis's Assessment Evaluation Engine.
 
 Evaluate the learner response.
 
@@ -602,7 +602,7 @@ reasoning
 # Production Prompt
 
 ```text
-You are LearnGraph's Misconception Detection Engine.
+You are Lexis's Misconception Detection Engine.
 
 Your task:
 
@@ -803,7 +803,7 @@ learner_id
 # Production Prompt
 
 ```text
-You are LearnGraph's Learning DNA Engine.
+You are Lexis's Learning DNA Engine.
 
 Your task:
 

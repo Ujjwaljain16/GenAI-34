@@ -1,4 +1,4 @@
-# LearnGraph AI
+﻿# Lexis AI
 
 # Prompt System Architecture Specification (PSA)
 
@@ -8,7 +8,7 @@ Version: 1.0
 
 # 1. Purpose
 
-This document defines the complete prompt architecture used by LearnGraph AI.
+This document defines the complete prompt architecture used by Lexis AI.
 
 The architecture governs:
 
@@ -122,11 +122,11 @@ Instead:
 
 ```text
 Application Layer
-      ↓
+      â†“
 Prompt Orchestrator
-      ↓
+      â†“
 Prompt Runtime
-      ↓
+      â†“
 LLM
 ```
 
@@ -137,39 +137,39 @@ This prevents recursive prompt coupling.
 # 3. High-Level Prompt Architecture
 
 ```text
-                ┌───────────────────────┐
-                │ Learning Graph Engine │
-                └───────────┬───────────┘
-                            │
-                            ▼
-                ┌───────────────────────┐
-                │ Context Retrieval     │
-                └───────────┬───────────┘
-                            │
-                            ▼
-                ┌───────────────────────┐
-                │ Prompt Orchestrator   │
-                └───────────┬───────────┘
-                            │
-          ┌─────────────────┼─────────────────┐
-          ▼                 ▼                 ▼
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                â”‚ Learning Graph Engine â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                            â”‚
+                            â–¼
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                â”‚ Context Retrieval     â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                            â”‚
+                            â–¼
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                â”‚ Prompt Orchestrator   â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                            â”‚
+          â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+          â–¼                 â–¼                 â–¼
 
  Assessment        Curriculum       Tutor
 
  Generator         Generator        Engine
 
-          ▼                 ▼                 ▼
+          â–¼                 â–¼                 â–¼
 
-                ┌───────────────────────┐
-                │ Gemini 2.5 Flash      │
-                └───────────┬───────────┘
-                            │
-                            ▼
+                â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                â”‚ Gemini 2.5 Flash      â”‚
+                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                            â”‚
+                            â–¼
 
                 Output Validation
 
-                            │
-                            ▼
+                            â”‚
+                            â–¼
 
                 Persistence Layer
 ```
@@ -317,17 +317,17 @@ Example:
 
 ```text
 Design
-  ↓
+  â†“
 Review
-  ↓
+  â†“
 Offline Evaluation
-  ↓
+  â†“
 Canary Deployment
-  ↓
+  â†“
 Production
-  ↓
+  â†“
 Monitoring
-  ↓
+  â†“
 Improvement
 ```
 
@@ -493,27 +493,27 @@ CREATE TABLE prompt_versions (
 
 ```text
 Request
-   ↓
+   â†“
 
 Context Builder
 
-   ↓
+   â†“
 
 Prompt Composer
 
-   ↓
+   â†“
 
 Gemini Runtime
 
-   ↓
+   â†“
 
 Validator
 
-   ↓
+   â†“
 
 Retry Engine
 
-   ↓
+   â†“
 
 Persistence
 ```
@@ -663,15 +663,15 @@ Allowed transitions:
 
 ```text
 DRAFT
-  ↓
+  â†“
 TESTING
-  ↓
+  â†“
 CANARY
-  ↓
+  â†“
 ACTIVE
-  ↓
+  â†“
 DEPRECATED
-  ↓
+  â†“
 ARCHIVED
 ```
 
@@ -690,7 +690,7 @@ Rollback:
 
 ```text
 Current Version
-        ↓
+        â†“
 Previous Stable Version
 ```
 
@@ -704,13 +704,13 @@ Every prompt execution passes through:
 
 ```text
 Input Validation
-       ↓
+       â†“
 Prompt Execution
-       ↓
+       â†“
 Schema Validation
-       ↓
+       â†“
 Educational Validation
-       ↓
+       â†“
 Persistence
 ```
 
