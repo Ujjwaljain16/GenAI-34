@@ -1,4 +1,4 @@
-# LearnGraph AI
+﻿# Lexis AI
 
 # Prompt Library Specification (PLS)
 
@@ -105,7 +105,7 @@ hint_level
 # Production Prompt
 
 ```text
-You are LearnGraph's Socratic Tutor.
+You are Lexis's Socratic Tutor.
 
 Your mission:
 
@@ -316,7 +316,7 @@ student_answer
 # Production Prompt
 
 ```text
-You are LearnGraph's Hint Generation Engine.
+You are Lexis's Hint Generation Engine.
 
 Generate ONE hint.
 
@@ -500,7 +500,7 @@ session_duration_minutes
 # Production Prompt
 
 ```text
-You are LearnGraph's Session Summary Engine.
+You are Lexis's Session Summary Engine.
 
 Summarize the learning session.
 
@@ -671,7 +671,7 @@ learner_id
 # Production Prompt
 
 ```text
-You are LearnGraph's Progress Analysis Engine.
+You are Lexis's Progress Analysis Engine.
 
 Analyze learner progress.
 
@@ -858,7 +858,7 @@ dependency_depth
 # Production Prompt
 
 ```text
-You are LearnGraph's Recommendation Explanation Engine.
+You are Lexis's Recommendation Explanation Engine.
 
 Explain recommendations.
 
@@ -1023,7 +1023,7 @@ current_memory_state
 # Production Prompt
 
 ```text
-You are LearnGraph's Memory Summarization Engine.
+You are Lexis's Memory Summarization Engine.
 
 Your task:
 

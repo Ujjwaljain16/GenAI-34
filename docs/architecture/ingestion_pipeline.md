@@ -1,4 +1,4 @@
-# LearnGraph AI — Ingestion Pipeline Architecture
+﻿# Lexis AI â€” Ingestion Pipeline Architecture
 
 **Document Type:** System Architecture  
 **Status:** Draft for Engineering Review  
@@ -36,11 +36,11 @@
 
 ## 1. Executive Summary
 
-The LearnGraph AI Ingestion Pipeline transforms raw educational documents — books, PDFs, research papers, and notes — into versioned, validated knowledge graphs. These graphs are the structural foundation for every downstream feature in the platform: adaptive assessments, Socratic tutoring sessions, spaced-repetition revision plans, mastery tracking, and learning path generation.
+The Lexis AI Ingestion Pipeline transforms raw educational documents â€” books, PDFs, research papers, and notes â€” into versioned, validated knowledge graphs. These graphs are the structural foundation for every downstream feature in the platform: adaptive assessments, Socratic tutoring sessions, spaced-repetition revision plans, mastery tracking, and learning path generation.
 
-Without the ingestion pipeline, the platform has no content. Without a high-quality pipeline, the platform has bad content — and bad content in an adaptive learning system compounds into a degraded user experience across every feature. A student presented with an incorrect prerequisite relationship will be assessed in the wrong order. A knowledge gap caused by a missed concept silently corrupts mastery tracking. The ingestion pipeline is therefore the highest-leverage system in LearnGraph AI.
+Without the ingestion pipeline, the platform has no content. Without a high-quality pipeline, the platform has bad content â€” and bad content in an adaptive learning system compounds into a degraded user experience across every feature. A student presented with an incorrect prerequisite relationship will be assessed in the wrong order. A knowledge gap caused by a missed concept silently corrupts mastery tracking. The ingestion pipeline is therefore the highest-leverage system in Lexis AI.
 
-The pipeline is designed around two hard constraints. First, the semantic complexity of transforming free-form prose into structured knowledge requires LLM reasoning at several stages — there is no reliable regex or rule-based substitute for concept extraction and relationship inference. Second, LLM outputs are probabilistic and can hallucinate, omit, or misclassify — so every LLM-produced artifact must pass through deterministic validation, a repair layer, and human verification before it can influence any user's learning experience.
+The pipeline is designed around two hard constraints. First, the semantic complexity of transforming free-form prose into structured knowledge requires LLM reasoning at several stages â€” there is no reliable regex or rule-based substitute for concept extraction and relationship inference. Second, LLM outputs are probabilistic and can hallucinate, omit, or misclassify â€” so every LLM-produced artifact must pass through deterministic validation, a repair layer, and human verification before it can influence any user's learning experience.
 
 The resulting architecture uses LLMs precisely where needed and deterministic software everywhere else. It is buildable by a strong engineering team, operable without ML infrastructure expertise, and extensible as the product matures.
 
@@ -50,11 +50,11 @@ The resulting architecture uses LLMs precisely where needed and deterministic so
 
 ### 2.1 Deterministic Over Probabilistic When Possible
 
-Any stage that can be implemented with deterministic logic — file parsing, chunking, deduplication, cycle detection, schema validation — must be. LLM calls are expensive, slow, nondeterministic, and introduce surface area for error. They are used only where human-level semantic reasoning is required: concept extraction, relationship inference, and description generation. Every other stage is plain software engineering.
+Any stage that can be implemented with deterministic logic â€” file parsing, chunking, deduplication, cycle detection, schema validation â€” must be. LLM calls are expensive, slow, nondeterministic, and introduce surface area for error. They are used only where human-level semantic reasoning is required: concept extraction, relationship inference, and description generation. Every other stage is plain software engineering.
 
 ### 2.2 Human Verification Before Publication
 
-No graph is published to production without explicit human approval. LLMs make mistakes. Deterministic validators catch structural errors but cannot catch semantic errors — a valid graph can still contain wrong relationships. A human reviewer is the last line of defense before a graph affects any learner. This is not optional; it is a hard invariant of the system.
+No graph is published to production without explicit human approval. LLMs make mistakes. Deterministic validators catch structural errors but cannot catch semantic errors â€” a valid graph can still contain wrong relationships. A human reviewer is the last line of defense before a graph affects any learner. This is not optional; it is a hard invariant of the system.
 
 ### 2.3 Version Everything
 
@@ -70,7 +70,7 @@ Concepts reference chunks. Chunks reference pages and sections. Pages reference 
 
 ### 2.6 Fail Safely
 
-Pipeline failures surface as job states with error context, never as silent partial graphs. A graph that fails validation does not advance. A graph that fails repair does not publish. Users see a clear status — processing, failed, awaiting review, published — at all times. The system never presents a corrupt or incomplete graph as valid.
+Pipeline failures surface as job states with error context, never as silent partial graphs. A graph that fails validation does not advance. A graph that fails repair does not publish. Users see a clear status â€” processing, failed, awaiting review, published â€” at all times. The system never presents a corrupt or incomplete graph as valid.
 
 ### 2.7 No Premature Automation
 
@@ -83,9 +83,9 @@ The pipeline includes a human verification step. This step will not be removed t
 The complete lifecycle of a document through the pipeline is as follows:
 
 ```
-Upload → Parsing → Segmentation → Concept Extraction →
-Canonicalization → Relationship Extraction → Graph Construction →
-Validation → Repair → Human Verification → Publication
+Upload â†’ Parsing â†’ Segmentation â†’ Concept Extraction â†’
+Canonicalization â†’ Relationship Extraction â†’ Graph Construction â†’
+Validation â†’ Repair â†’ Human Verification â†’ Publication
 ```
 
 ### Stage 1: Upload
@@ -98,7 +98,7 @@ The Document Processing Service retrieves the file from object storage. It dispa
 
 ### Stage 3: Segmentation
 
-The parsed document is split into chunks. Chunking is performed deterministically: chapters are identified by heading patterns and table-of-contents extraction where available; sections are split by second-level headings; chunks are produced by a sliding window over section text with a target length of 800–1200 tokens and 15% overlap. Each chunk is stored as a `source_chunk` in PostgreSQL with its chapter index, section title, page range, and raw text. No LLM is involved in this stage.
+The parsed document is split into chunks. Chunking is performed deterministically: chapters are identified by heading patterns and table-of-contents extraction where available; sections are split by second-level headings; chunks are produced by a sliding window over section text with a target length of 800â€“1200 tokens and 15% overlap. Each chunk is stored as a `source_chunk` in PostgreSQL with its chapter index, section title, page range, and raw text. No LLM is involved in this stage.
 
 ### Stage 4: Concept Extraction
 
@@ -204,7 +204,7 @@ The pipeline is composed of discrete services with explicit boundaries. All serv
 
 ### 4.9 Graph Version Manager
 
-**Responsibility:** Manage graph lifecycle state transitions: draft → published → archived.  
+**Responsibility:** Manage graph lifecycle state transitions: draft â†’ published â†’ archived.  
 **Inputs:** Admin approval/rejection events, publication requests.  
 **Outputs:** Updated `graph_versions` status, archived previous versions.  
 **Dependencies:** PostgreSQL, Neo4j (for publication).  
@@ -256,10 +256,10 @@ For PDFs, metadata is extracted from the PDF info dictionary: title, author, sub
 
 Chapter detection uses a priority-ordered strategy:
 
-1. **Table of Contents extraction** — if the PDF has a bookmark tree or EPUB has an NCX/NAV document, use it directly. This is the highest-confidence signal.
-2. **Heading style detection** — for DOCX files, heading styles (Heading 1, Heading 2) are structural markers. Use them directly.
-3. **Font-size and weight heuristics** — for PDFs without bookmarks, text blocks with significantly larger font sizes or bold formatting at the start of a page are candidates for chapter/section headings.
-4. **Regex patterns** — as a fallback, patterns like `Chapter N`, `CHAPTER N`, `Section N.M`, and Roman numerals at line starts are used.
+1. **Table of Contents extraction** â€” if the PDF has a bookmark tree or EPUB has an NCX/NAV document, use it directly. This is the highest-confidence signal.
+2. **Heading style detection** â€” for DOCX files, heading styles (Heading 1, Heading 2) are structural markers. Use them directly.
+3. **Font-size and weight heuristics** â€” for PDFs without bookmarks, text blocks with significantly larger font sizes or bold formatting at the start of a page are candidates for chapter/section headings.
+4. **Regex patterns** â€” as a fallback, patterns like `Chapter N`, `CHAPTER N`, `Section N.M`, and Roman numerals at line starts are used.
 
 Detected chapters and sections are stored as metadata on `source_chunks`. The detection strategy used is recorded for debugging.
 
@@ -268,12 +268,12 @@ Detected chapters and sections are stored as metadata on `source_chunks`. The de
 Chunks are produced per section, not per page. Page-based chunking breaks mid-sentence and destroys semantic coherence. Section-based chunking preserves topic boundaries.
 
 **Chunk parameters:**
-- Target size: 800–1200 tokens (approximately 600–900 words)
+- Target size: 800â€“1200 tokens (approximately 600â€“900 words)
 - Overlap: 15% of chunk size (carried from end of previous chunk)
 - Minimum chunk size: 200 tokens (shorter sections are merged with the next)
 - Maximum chunk size: 1500 tokens (longer sections are split at sentence boundaries)
 
-**Why these parameters:** 800–1200 tokens fits within a single LLM context with room for the prompt and response. Overlap prevents concepts that straddle chunk boundaries from being missed. Section alignment means the chapter and section metadata on each chunk is accurate.
+**Why these parameters:** 800â€“1200 tokens fits within a single LLM context with room for the prompt and response. Overlap prevents concepts that straddle chunk boundaries from being missed. Section alignment means the chapter and section metadata on each chunk is accurate.
 
 **Tradeoff:** Overlap creates duplicated text. Concept extraction may produce near-duplicate candidates across overlapping chunks. This is resolved by the Canonicalization stage, which is why both chunking overlap and canonicalization are required together.
 
@@ -299,7 +299,7 @@ For each `source_chunk`, a single LLM prompt is submitted. The prompt instructs 
 **Prompt design constraints:**
 - The system prompt specifies the output schema precisely.
 - Temperature is set to 0 (or the lowest available setting) for maximum determinism.
-- The prompt explicitly instructs the model to extract only concepts that a student would need to understand and recall — not every noun, not every proper name.
+- The prompt explicitly instructs the model to extract only concepts that a student would need to understand and recall â€” not every noun, not every proper name.
 - The model is told to exclude: author names, publisher names, geographic references unless they are the subject of study, and formatting artifacts.
 
 **Output schema (JSON array):**
@@ -328,7 +328,7 @@ This filtering runs before canonicalization, reducing the merge workload.
 
 ### 6.3 Concept Scoring
 
-Each concept carries a confidence score from the LLM (0.0–1.0). This score is normalized and carried through to the canonical concept record. After canonicalization, if multiple candidates are merged into one canonical concept, the final confidence is the maximum confidence among merged candidates (not an average — if any source was high-confidence, the concept is high-confidence).
+Each concept carries a confidence score from the LLM (0.0â€“1.0). This score is normalized and carried through to the canonical concept record. After canonicalization, if multiple candidates are merged into one canonical concept, the final confidence is the maximum confidence among merged candidates (not an average â€” if any source was high-confidence, the concept is high-confidence).
 
 ### 6.4 Concept Metadata
 
@@ -342,7 +342,7 @@ Each canonical concept record in PostgreSQL stores:
 | `name` | TEXT | Canonical name |
 | `description` | TEXT | Generated description |
 | `difficulty` | ENUM | `introductory`, `intermediate`, `advanced` |
-| `confidence` | FLOAT | Extraction confidence (0.0–1.0) |
+| `confidence` | FLOAT | Extraction confidence (0.0â€“1.0) |
 | `chapter_index` | INT | Source chapter (from primary evidence chunk) |
 | `source_chunk_ids` | UUID[] | All chunks that contributed evidence |
 | `primary_evidence` | TEXT | Verbatim evidence sentence |
@@ -363,7 +363,7 @@ Concept extraction runs per chunk. The same concept will appear in multiple chun
 
 **Step 2: Lowercase normalization for comparison.** All concept names are lowercased for comparison purposes only. The canonical name retains original casing from the highest-confidence candidate.
 
-**Step 3: Fuzzy string matching.** Candidates with an edit distance below a threshold (Levenshtein distance ≤ 2 for short strings, ≤ 4 for longer strings) are grouped as merge candidates. The RapidFuzz library is used for efficient pair-wise comparison.
+**Step 3: Fuzzy string matching.** Candidates with an edit distance below a threshold (Levenshtein distance â‰¤ 2 for short strings, â‰¤ 4 for longer strings) are grouped as merge candidates. The RapidFuzz library is used for efficient pair-wise comparison.
 
 **Step 4: Token overlap matching.** Concepts sharing more than 80% token overlap (after stop-word removal) are also grouped as merge candidates.
 
@@ -394,17 +394,17 @@ For `MERGE_CONFLICT` cases, an optional LLM call can be made: submit both candid
 
 The MVP supports two relationship types:
 
-- **REQUIRES** — Concept A requires prior understanding of Concept B. This is a directed prerequisite edge.
-- **RELATED_TO** — Concepts A and B are related or frequently co-occur but no strict prerequisite exists. This is an undirected informational edge.
+- **REQUIRES** â€” Concept A requires prior understanding of Concept B. This is a directed prerequisite edge.
+- **RELATED_TO** â€” Concepts A and B are related or frequently co-occur but no strict prerequisite exists. This is an undirected informational edge.
 
 `REQUIRES` edges form the learning path structure. `RELATED_TO` edges support recommendations and concept browsing. Additional relationship types (PART_OF, CONTRASTS_WITH, EXTENDS) are reserved for Phase 2.
 
 ### 8.2 Pair Generation
 
-Not all concept pairs can be submitted for relationship extraction — for a book with 200 concepts, that is 19,900 pairs, and submitting each pair as an LLM call is prohibitively expensive. Pairs are scoped as follows:
+Not all concept pairs can be submitted for relationship extraction â€” for a book with 200 concepts, that is 19,900 pairs, and submitting each pair as an LLM call is prohibitively expensive. Pairs are scoped as follows:
 
-1. **Co-occurrence windowing** — Only pairs of concepts that appear in the same chunk or in adjacent chunks (window size = 2) are candidates. This covers the majority of real prerequisites, which are established in close textual proximity.
-2. **Chapter co-occurrence** — For concepts in the same chapter that do not appear in adjacent chunks, a lighter-weight LLM pass checks whether a relationship exists.
+1. **Co-occurrence windowing** â€” Only pairs of concepts that appear in the same chunk or in adjacent chunks (window size = 2) are candidates. This covers the majority of real prerequisites, which are established in close textual proximity.
+2. **Chapter co-occurrence** â€” For concepts in the same chapter that do not appear in adjacent chunks, a lighter-weight LLM pass checks whether a relationship exists.
 3. **Cross-chapter pairs are not checked in the MVP.** Cross-chapter prerequisites are inferred transitively from within-chapter chains.
 
 ### 8.3 LLM Relationship Prompt
@@ -502,15 +502,15 @@ Each edge represents a relationship between two concepts:
 ### 9.4 Graph Metadata
 
 The `graph_versions` record carries:
-- `book_id` — parent book
-- `version_number` — monotonically increasing integer per book
-- `status` — `DRAFT | VALIDATING | PENDING_REVIEW | APPROVED | PUBLISHED | ARCHIVED | FAILED`
-- `node_count` — concept count (cached for quick display)
-- `edge_count` — relationship count (cached)
-- `build_job_id` — the job that produced this version
-- `neo4j_graph_id` — set after publication
-- `published_at` — set after publication
-- `archived_at` — set when superseded
+- `book_id` â€” parent book
+- `version_number` â€” monotonically increasing integer per book
+- `status` â€” `DRAFT | VALIDATING | PENDING_REVIEW | APPROVED | PUBLISHED | ARCHIVED | FAILED`
+- `node_count` â€” concept count (cached for quick display)
+- `edge_count` â€” relationship count (cached)
+- `build_job_id` â€” the job that produced this version
+- `neo4j_graph_id` â€” set after publication
+- `published_at` â€” set after publication
+- `archived_at` â€” set when superseded
 
 ### 9.5 Stable IDs Across Versions
 
@@ -524,42 +524,42 @@ The validator runs a fixed suite of deterministic checks. Each check is independ
 
 ### 10.1 Validation Rules
 
-**V01 — No Cycles in REQUIRES Graph**
+**V01 â€” No Cycles in REQUIRES Graph**
 - Purpose: The prerequisite graph must be a DAG. Cycles mean "A requires B requires A", which is semantically invalid and causes infinite loops in learning path generation.
 - Implementation: Depth-first search with color marking (white/gray/black). Any back edge indicates a cycle.
 - Failure behavior: CRITICAL. Graph advances to Repair. If repair cannot break cycles, graph fails.
 
-**V02 — No Orphan Nodes**
+**V02 â€” No Orphan Nodes**
 - Purpose: Concepts with no relationships cannot be placed in a learning path or assessment.
 - Implementation: Nodes with degree 0 in the union of REQUIRES and RELATED_TO edges.
 - Failure behavior: WARNING. Orphan nodes are flagged but do not block graph advancement. Reviewer decides whether to add relationships or remove the node.
 
-**V03 — Valid Root Nodes**
-- Purpose: Every learning path must have entry points — concepts with no prerequisites. At least one such concept must exist.
+**V03 â€” Valid Root Nodes**
+- Purpose: Every learning path must have entry points â€” concepts with no prerequisites. At least one such concept must exist.
 - Implementation: Nodes with in-degree 0 in the REQUIRES graph.
 - Failure behavior: CRITICAL if count = 0. If all concepts require something, the DAG has no starting point.
 
-**V04 — No Duplicate Edges**
+**V04 â€” No Duplicate Edges**
 - Purpose: Multiple REQUIRES edges between the same ordered pair waste storage and confuse path generation.
 - Implementation: Check for duplicate (source_id, target_id, type) tuples.
 - Failure behavior: WARNING. Duplicates are automatically deduplicated in Repair.
 
-**V05 — Confidence Floor**
+**V05 â€” Confidence Floor**
 - Purpose: Concepts or relationships that are too low-confidence should not be published.
 - Implementation: Any node with confidence < 0.4 or any edge with confidence < 0.5 fails this check.
 - Failure behavior: WARNING. Low-confidence artifacts are flagged for reviewer. Repair can remove them.
 
-**V06 — Reachability from Roots**
+**V06 â€” Reachability from Roots**
 - Purpose: Every concept in the graph should be reachable from at least one root concept via REQUIRES edges.
 - Implementation: BFS from all root nodes. Unreachable nodes are isolated subgraphs.
 - Failure behavior: WARNING. Isolated subgraphs are flagged for reviewer. They may represent a valid disconnected topic or an extraction error.
 
-**V07 — Minimum Graph Size**
+**V07 â€” Minimum Graph Size**
 - Purpose: A graph with fewer than 5 concepts is likely a parsing or extraction failure.
 - Implementation: `node_count < 5`.
 - Failure behavior: CRITICAL. Likely indicates a pipeline failure upstream.
 
-**V08 — Schema Compliance**
+**V08 â€” Schema Compliance**
 - Purpose: Ensure all node and edge records have required fields and valid enum values.
 - Implementation: JSON schema validation against defined schemas.
 - Failure behavior: CRITICAL. Schema failures indicate a bug in the Graph Builder.
@@ -582,20 +582,20 @@ CREATE TABLE graph_validation_results (
 
 ## 11. Graph Repair Engine
 
-The Repair Engine applies safe, deterministic transformations to a graph that has failed validation. It is not a recovery system for all failures — some failures require human judgment and are not repaired automatically.
+The Repair Engine applies safe, deterministic transformations to a graph that has failed validation. It is not a recovery system for all failures â€” some failures require human judgment and are not repaired automatically.
 
 ### 11.1 Repair Operations
 
-**R01 — Break Cycles (addresses V01)**
+**R01 â€” Break Cycles (addresses V01)**
 Strategy: For each cycle detected by V01, remove the edge with the lowest confidence score in the cycle. If multiple edges are tied, remove the one with the longest path alternative. This is a greedy heuristic, not guaranteed optimal, but sufficient for typical small cycles produced by noisy LLM extraction. Each removed edge is logged with the reason.
 
-**R02 — Remove Duplicate Edges (addresses V04)**
+**R02 â€” Remove Duplicate Edges (addresses V04)**
 Strategy: For each group of duplicate (source, target, type) edges, retain the one with the highest confidence. All others are marked `deleted` with reason `DEDUPLICATION`.
 
-**R03 — Remove Subthreshold Nodes and Edges (addresses V05)**
+**R03 â€” Remove Subthreshold Nodes and Edges (addresses V05)**
 Strategy: Remove nodes with confidence < 0.4 and their incident edges. Remove edges with confidence < 0.5. Log each removal.
 
-**R04 — Remove Pure Orphans (optional, addresses V02)**
+**R04 â€” Remove Pure Orphans (optional, addresses V02)**
 Strategy: After R01, R02, R03, any remaining nodes with degree 0 are removed. This is applied only if the orphan count is below 20% of total nodes; above that threshold, the high orphan count indicates an extraction failure and the graph is failed rather than aggressively pruned.
 
 ### 11.2 Repair Safety Constraints
@@ -618,7 +618,7 @@ Repair cannot fix:
 
 ### 12.1 Why Humans Remain in the Loop
 
-LLMs produce plausible-sounding errors. A relationship between "Calculus" and "Machine Learning" might be extracted with high confidence even if the book never establishes that relationship — the LLM is drawing on training knowledge, not source evidence. A human reviewer who reads the source evidence can catch this. Deterministic validators catch structural problems; humans catch semantic problems. This combination is necessary for educational content quality.
+LLMs produce plausible-sounding errors. A relationship between "Calculus" and "Machine Learning" might be extracted with high confidence even if the book never establishes that relationship â€” the LLM is drawing on training knowledge, not source evidence. A human reviewer who reads the source evidence can catch this. Deterministic validators catch structural problems; humans catch semantic problems. This combination is necessary for educational content quality.
 
 ### 12.2 Verification UI Capabilities
 
@@ -656,8 +656,8 @@ The audit log is immutable. It is stored in a `graph_audit_events` table and is 
 ### 13.1 Version States
 
 ```
-DRAFT → VALIDATING → PENDING_REVIEW → APPROVED → PUBLISHED
-                   ↓                             ↓
+DRAFT â†’ VALIDATING â†’ PENDING_REVIEW â†’ APPROVED â†’ PUBLISHED
+                   â†“                             â†“
                FAILED                        ARCHIVED
 ```
 
@@ -707,13 +707,13 @@ The rule: if it needs a graph traversal query at runtime, it's in Neo4j. If it's
 
 ### 14.2 Node Labels
 
-- `:Concept` — all concept nodes
-- `:Book` — one node per book (for book-scoped queries without cross-joining)
+- `:Concept` â€” all concept nodes
+- `:Book` â€” one node per book (for book-scoped queries without cross-joining)
 
 ### 14.3 Relationship Types
 
-- `[:REQUIRES]` — directed prerequisite edge (source → target means target requires source)
-- `[:RELATED_TO]` — undirected informational edge
+- `[:REQUIRES]` â€” directed prerequisite edge (source â†’ target means target requires source)
+- `[:RELATED_TO]` â€” undirected informational edge
 
 ### 14.4 Node Properties
 
@@ -900,7 +900,7 @@ is_deleted BOOLEAN DEFAULT FALSE
 created_at TIMESTAMP
 ```
 
-**`graph_validation_results`** — defined in Section 10.2.
+**`graph_validation_results`** â€” defined in Section 10.2.
 
 **`graph_repair_log`**
 ```sql
@@ -1005,14 +1005,14 @@ Every LLM call is logged with: prompt token count, completion token count, laten
 
 Key metrics exposed via a `/metrics` endpoint (Prometheus-compatible):
 
-- `ingestion_jobs_total{status}` — count of jobs by final status
-- `ingestion_stage_duration_seconds{stage}` — histogram of stage duration
-- `llm_api_calls_total{service, status}` — LLM call volume
-- `llm_api_latency_seconds{service}` — LLM call latency histogram
-- `concepts_extracted_per_chunk` — concept yield per chunk
-- `validation_failures_total{rule}` — count of failures per validation rule
-- `graph_repair_operations_total{operation}` — repair operation counts
-- `neo4j_write_duration_seconds` — publication write time
+- `ingestion_jobs_total{status}` â€” count of jobs by final status
+- `ingestion_stage_duration_seconds{stage}` â€” histogram of stage duration
+- `llm_api_calls_total{service, status}` â€” LLM call volume
+- `llm_api_latency_seconds{service}` â€” LLM call latency histogram
+- `concepts_extracted_per_chunk` â€” concept yield per chunk
+- `validation_failures_total{rule}` â€” count of failures per validation rule
+- `graph_repair_operations_total{operation}` â€” repair operation counts
+- `neo4j_write_duration_seconds` â€” publication write time
 
 ### 17.3 Distributed Tracing
 
@@ -1032,8 +1032,8 @@ An admin dashboard page shows:
 ### 17.5 Failure Alerts
 
 Alerts fire when:
-- Any job is in `FAILED` state — immediate notification to platform oncall
-- Job heartbeat is stale (worker likely dead) — immediate notification
+- Any job is in `FAILED` state â€” immediate notification to platform oncall
+- Job heartbeat is stale (worker likely dead) â€” immediate notification
 - LLM API error rate exceeds 10% in a 5-minute window
 - Neo4j write failure (publication job fails)
 
@@ -1049,13 +1049,13 @@ All `graph_audit_events` are append-only. Reviewer actions, approval events, and
 
 **Detection:** The parser throws an exception. `graph_build_job.status` is set to `FAILED` with a parse error message.  
 **Recovery:** No automated recovery. The user is notified. They can re-upload a fixed file or a different format.  
-**User experience:** Upload status shows "Processing Failed — unable to parse the document. Please try a different file format."
+**User experience:** Upload status shows "Processing Failed â€” unable to parse the document. Please try a different file format."
 
 ### 18.2 LLM API Unavailability
 
 **Detection:** HTTP 5xx or timeout from LLM provider. Job status shows `FAILED` after max retries.  
 **Recovery:** Automatic retry with exponential backoff (3 retries over ~8 minutes). If all retries fail, job fails and admin is alerted.  
-**User experience:** Upload status shows "Processing delayed — we will retry automatically. No action required."
+**User experience:** Upload status shows "Processing delayed â€” we will retry automatically. No action required."
 
 ### 18.3 LLM Returns Malformed JSON
 
@@ -1067,7 +1067,7 @@ All `graph_audit_events` are append-only. Reviewer actions, approval events, and
 
 **Detection:** V01, V03, V07, or V08 fail after Repair.  
 **Recovery:** Graph is marked `FAILED_UNRECOVERABLE`. No automatic recovery.  
-**User experience:** Upload status shows "Ingestion Failed — the document produced an invalid knowledge graph. Please contact support."
+**User experience:** Upload status shows "Ingestion Failed â€” the document produced an invalid knowledge graph. Please contact support."
 
 ### 18.5 Neo4j Write Failure (Publication)
 
@@ -1078,8 +1078,8 @@ All `graph_audit_events` are append-only. Reviewer actions, approval events, and
 ### 18.6 Partial Extraction Success
 
 **Detection:** A significant percentage of chunks (>30%) were skipped due to LLM failures.  
-**Recovery:** The Concept Extraction Service records skip count. If skips exceed the threshold, the graph is flagged `LOW_COVERAGE` in validation (V09 — a warning, not critical).  
-**User experience:** Reviewer sees a warning: "Coverage may be incomplete — over 30% of document sections were not fully processed."
+**Recovery:** The Concept Extraction Service records skip count. If skips exceed the threshold, the graph is flagged `LOW_COVERAGE` in validation (V09 â€” a warning, not critical).  
+**User experience:** Reviewer sees a warning: "Coverage may be incomplete â€” over 30% of document sections were not fully processed."
 
 ### 18.7 Worker Process Crash
 
@@ -1103,7 +1103,7 @@ Books exceeding a configured size limit (e.g., 1000 pages) are rejected at uploa
 
 ### 19.2 Many Concurrent Users
 
-Ingestion is a background process. It does not block user-facing request paths. Worker pool size is configurable. At low scale (MVP), 2–4 workers are sufficient. Workers are stateless and can be scaled horizontally.
+Ingestion is a background process. It does not block user-facing request paths. Worker pool size is configurable. At low scale (MVP), 2â€“4 workers are sufficient. Workers are stateless and can be scaled horizontally.
 
 ### 19.3 Many Graph Versions
 
@@ -1111,7 +1111,7 @@ PostgreSQL can hold thousands of graph versions without performance degradation 
 
 ### 19.4 LLM Cost Management
 
-LLM calls are the primary cost driver. Per-book cost is bounded by chunk count × (extraction prompt tokens + relationship prompt tokens). For a typical 200-page book with ~150 chunks and ~100 concept pairs, estimated cost is $0.50–$2.00 per book at current API pricing. Cost is logged per job for tracking.
+LLM calls are the primary cost driver. Per-book cost is bounded by chunk count Ã— (extraction prompt tokens + relationship prompt tokens). For a typical 200-page book with ~150 chunks and ~100 concept pairs, estimated cost is $0.50â€“$2.00 per book at current API pricing. Cost is logged per job for tracking.
 
 ### 19.5 Neo4j Scaling
 
@@ -1181,11 +1181,11 @@ sequenceDiagram
     API->>U: 202 Accepted { job_id }
 
     W->>PG: Poll for QUEUED job (SKIP LOCKED)
-    W->>PG: Update job status → PARSING
+    W->>PG: Update job status â†’ PARSING
     W->>S3: Fetch file
     W->>W: Parse & chunk document
     W->>PG: Write source_chunks
-    W->>PG: Update job status → EXTRACTING
+    W->>PG: Update job status â†’ EXTRACTING
 
     loop For each chunk
         W->>LLM: Extract concepts prompt
@@ -1193,39 +1193,39 @@ sequenceDiagram
         W->>PG: Write concept candidates
     end
 
-    W->>PG: Update job status → CANONICALIZING
+    W->>PG: Update job status â†’ CANONICALIZING
     W->>W: Deduplicate & merge concepts
     W->>PG: Write canonical concepts
 
-    W->>PG: Update job status → EXTRACTING (relationships)
+    W->>PG: Update job status â†’ EXTRACTING (relationships)
     loop For each concept pair
         W->>LLM: Relationship extraction prompt
         LLM->>W: JSON relationship
         W->>PG: Write concept_edges
     end
 
-    W->>PG: Update job status → BUILDING
+    W->>PG: Update job status â†’ BUILDING
     W->>W: Assemble graph
     W->>PG: Write graph_versions (DRAFT), concepts, edges
 
-    W->>PG: Update job status → VALIDATING
+    W->>PG: Update job status â†’ VALIDATING
     W->>W: Run validation rules
     W->>PG: Write graph_validation_results (all pass)
 
-    W->>PG: Update graph_version status → PENDING_REVIEW
-    W->>PG: Update job status → PENDING_REVIEW
+    W->>PG: Update graph_version status â†’ PENDING_REVIEW
+    W->>PG: Update job status â†’ PENDING_REVIEW
 
     Note over U,N4J: Human reviewer inspects graph
 
     U->>API: POST /graphs/{version_id}/approve
     API->>PG: Write graph_version_events (APPROVED)
-    API->>PG: Update graph_version status → APPROVED
+    API->>PG: Update graph_version status â†’ APPROVED
     API->>PG: Enqueue publication job
 
     W->>PG: Poll for publication job
     W->>PG: Fetch approved graph (concepts + edges)
     W->>N4J: MERGE concept nodes and relationships
-    W->>PG: Update graph_version → PUBLISHED, set neo4j_graph_id
+    W->>PG: Update graph_version â†’ PUBLISHED, set neo4j_graph_id
     W->>PG: Archive previous published version
 ```
 
@@ -1245,18 +1245,18 @@ sequenceDiagram
     W->>PG: Claim job, begin processing
     Note over W: Parsing, Extraction, Canonicalization complete
 
-    W->>PG: Update job → VALIDATING
+    W->>PG: Update job â†’ VALIDATING
     W->>W: Run validation rules
     Note over W: V01 fails (cycle detected), V07 fails (3 concepts only)
     W->>PG: Write validation failures
 
-    W->>PG: Update job → REPAIRING
+    W->>PG: Update job â†’ REPAIRING
     W->>W: R01: Break cycle (remove 1 edge)
     W->>W: Re-run validation
     Note over W: V01 passes, V07 still fails (2 concepts after repair)
 
-    W->>PG: Update graph_version → FAILED
-    W->>PG: Update job → FAILED_UNRECOVERABLE, write error_message
+    W->>PG: Update graph_version â†’ FAILED
+    W->>PG: Update job â†’ FAILED_UNRECOVERABLE, write error_message
 
     Note over U: User notified via email / status poll
     U->>API: GET /books/{book_id}/status
@@ -1292,7 +1292,7 @@ sequenceDiagram
     VS->>PG: Update concept, write graph_audit_events
     PG->>VS: OK
 
-    R->>UI: Delete edge (A → B) — low confidence
+    R->>UI: Delete edge (A â†’ B) â€” low confidence
     UI->>VS: DELETE /edges/{id}
     VS->>PG: Soft-delete edge, write graph_audit_events
     PG->>VS: OK
@@ -1300,7 +1300,7 @@ sequenceDiagram
     R->>UI: Click "Approve"
     UI->>VS: POST /graphs/{version_id}/approve
     VS->>PG: Write graph_version_events (APPROVED)
-    VS->>PG: Update graph_version status → APPROVED
+    VS->>PG: Update graph_version status â†’ APPROVED
     VS->>PG: Enqueue publication job
     VS->>UI: 200 OK
     UI->>R: "Graph approved. Publication queued."
@@ -1315,7 +1315,7 @@ sequenceDiagram
     participant N4J as Neo4j
 
     W->>PG: Poll graph_publication_jobs (SKIP LOCKED)
-    W->>PG: Update job → PUBLISHING
+    W->>PG: Update job â†’ PUBLISHING
 
     W->>PG: Fetch graph_version record
     W->>PG: Fetch all concepts for version
@@ -1334,7 +1334,7 @@ sequenceDiagram
     W->>PG: UPDATE graph_versions SET status='PUBLISHED', neo4j_graph_id=..., published_at=NOW()
     W->>PG: UPDATE previous published version SET status='ARCHIVED', archived_at=NOW()
     W->>PG: Write graph_version_events (PUBLISHED)
-    W->>PG: UPDATE publication job → COMPLETED
+    W->>PG: UPDATE publication job â†’ COMPLETED
     W->>PG: Commit transaction
 
     Note over W: Publication complete. Graph live.
@@ -1355,8 +1355,8 @@ The MVP delivers the complete pipeline for a single document format (PDF primary
 - Deterministic canonicalization (fuzzy matching)
 - LLM-based relationship extraction (co-occurrence windowed)
 - Graph assembly with stable IDs
-- Full validation suite (V01–V08)
-- Deterministic repair (R01–R04)
+- Full validation suite (V01â€“V08)
+- Deterministic repair (R01â€“R04)
 - Human verification UI with edit, approve, reject
 - Draft/Published/Archived version states
 - Neo4j publication with REQUIRES and RELATED_TO
@@ -1394,13 +1394,13 @@ The MVP delivers the complete pipeline for a single document format (PDF primary
 
 ### Complexity
 
-The pipeline has meaningful complexity — eleven distinct stages, two storage systems, LLM integration, background job processing, and a human verification layer. This complexity is load-bearing. Each stage exists because removing it produces a demonstrably worse outcome: removing chunking breaks LLM context limits; removing canonicalization produces duplicate graph nodes; removing validation publishes structurally corrupt graphs; removing human verification publishes semantically corrupt graphs. No stage is speculative.
+The pipeline has meaningful complexity â€” eleven distinct stages, two storage systems, LLM integration, background job processing, and a human verification layer. This complexity is load-bearing. Each stage exists because removing it produces a demonstrably worse outcome: removing chunking breaks LLM context limits; removing canonicalization produces duplicate graph nodes; removing validation publishes structurally corrupt graphs; removing human verification publishes semantically corrupt graphs. No stage is speculative.
 
 The complexity is also well-distributed. No single service carries disproportionate responsibility. The stages are sequential and independently testable. A strong engineering team can build and test each stage in isolation.
 
 ### Implementation Risk
 
-**Medium.** The primary risk is LLM extraction quality. If the LLM produces low-quality concepts or relationships for certain document types or domains, the downstream graph will be weak. This risk is mitigated by the human verification layer, which catches semantic errors before publication, and by the repair engine, which removes clearly low-confidence artifacts. The system degrades gracefully — bad LLM output produces a graph that fails validation or requires more reviewer intervention, not a silently corrupt published graph.
+**Medium.** The primary risk is LLM extraction quality. If the LLM produces low-quality concepts or relationships for certain document types or domains, the downstream graph will be weak. This risk is mitigated by the human verification layer, which catches semantic errors before publication, and by the repair engine, which removes clearly low-confidence artifacts. The system degrades gracefully â€” bad LLM output produces a graph that fails validation or requires more reviewer intervention, not a silently corrupt published graph.
 
 PDF parsing quality is the second risk. Academic PDFs with complex layouts, multi-column text, and mathematical notation are harder to parse cleanly. This is mitigated by starting with well-structured educational books and expanding format support as parser quality improves.
 
@@ -1422,7 +1422,7 @@ The alternatives considered and rejected:
 
 **Multi-agent architecture:** An agent swarm that autonomously plans and coordinates extraction introduces unpredictable execution paths, difficult debugging, and high failure surface area. The pipeline stages defined here produce the same outcome with deterministic, debuggable control flow.
 
-**Embedding-heavy architecture:** Using embeddings for concept extraction, similarity, and relationship detection was considered. Embeddings are powerful but opaque — it is difficult to explain why two concepts were linked without source evidence. They are also slower to build tooling around and require vector infrastructure. For Phase 2 cross-book linking, embeddings become justified. In Phase 1, deterministic matching and LLM reasoning are sufficient and more explainable.
+**Embedding-heavy architecture:** Using embeddings for concept extraction, similarity, and relationship detection was considered. Embeddings are powerful but opaque â€” it is difficult to explain why two concepts were linked without source evidence. They are also slower to build tooling around and require vector infrastructure. For Phase 2 cross-book linking, embeddings become justified. In Phase 1, deterministic matching and LLM reasoning are sufficient and more explainable.
 
 **Fully automated approval:** Removing human review reduces time to published graph but removes the only semantic error check in the system. LLM errors on educational content cause measurable learning harm. The human review step exists for a product reason, not an engineering one.
 

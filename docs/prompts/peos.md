@@ -1,4 +1,4 @@
-# LearnGraph AI
+﻿# Lexis AI
 
 # Prompt Evaluation & Observability Specification (PEOS)
 
@@ -8,7 +8,7 @@ Status: Production
 
 Purpose:
 
-Define how LearnGraph evaluates, monitors, validates, audits, improves, and safely deploys prompt-based educational systems.
+Define how Lexis evaluates, monitors, validates, audits, improves, and safely deploys prompt-based educational systems.
 
 A production AI learning platform is not measured by prompt quality.
 
@@ -34,17 +34,17 @@ Most AI systems evaluate:
 
 ```text
 Prompt
-   ↓
+   â†“
 Output
 ```
 
-LearnGraph evaluates:
+Lexis evaluates:
 
 ```text
 Learner
-   ↓
+   â†“
 Interaction
-   ↓
+   â†“
 Learning Outcome
 ```
 
@@ -70,28 +70,28 @@ Learning Outcome Quality
 
 ```text
 Prompt Run
-     │
-     ▼
+     â”‚
+     â–¼
 
 Schema Validation
-     │
-     ▼
+     â”‚
+     â–¼
 
 Automated Evaluation
-     │
-     ▼
+     â”‚
+     â–¼
 
 LLM Evaluation
-     │
-     ▼
+     â”‚
+     â–¼
 
 Human Evaluation
-     │
-     ▼
+     â”‚
+     â–¼
 
 Metrics Store
-     │
-     ▼
+     â”‚
+     â–¼
 
 Dashboard
 ```
@@ -211,23 +211,23 @@ Pipeline:
 
 ```text
 Prompt Version
-      │
-      ▼
+      â”‚
+      â–¼
 
 Benchmark Dataset
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Automated Scoring
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 LLM Judging
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Human Review
 ```
@@ -354,7 +354,7 @@ Average > 4.2
 
 # 8. Personalization Evaluation
 
-LearnGraph's key differentiator.
+Lexis's key differentiator.
 
 ---
 
@@ -951,7 +951,7 @@ Winner Selection
 Must outperform baseline by:
 
 ```text
-≥10%
+â‰¥10%
 ```
 
 with statistical significance.
@@ -1168,45 +1168,45 @@ Previous Stable Version
 
 ```text
 Prompt Runs
-      │
-      ▼
+      â”‚
+      â–¼
 
 Evaluation
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Failures
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Analysis
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Prompt Revision
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Offline Testing
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Canary
 
-      │
-      ▼
+      â”‚
+      â–¼
 
 Production
 ```
 
 ---
 
-# 27. LearnGraph Production Readiness Checklist
+# 27. Lexis Production Readiness Checklist
 
 Every Prompt Must Have:
 
@@ -1225,7 +1225,7 @@ Every Prompt Must Have:
 
 ---
 
-# 28. Final LearnGraph Prompt System Inventory
+# 28. Final Lexis Prompt System Inventory
 
 ### Assessment Layer
 

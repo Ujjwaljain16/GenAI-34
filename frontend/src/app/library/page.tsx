@@ -73,7 +73,6 @@ export default function LibraryPage() {
     if (sort === "alpha") return a.title.localeCompare(b.title);
     return 0; // "recent" — server returns by updatedAt desc
   });
-
   const getBookAction = (book: BookSummaryDTO) => {
     if (book.status === "kg_verified") return `/book/${book.id}/verify`;
     if (book.status === "ready")       return `/book/${book.id}`;

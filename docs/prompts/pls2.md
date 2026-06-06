@@ -1,4 +1,4 @@
-# LearnGraph AI
+﻿# Lexis AI
 
 # Prompt Library Specification (PLS)
 
@@ -105,7 +105,7 @@ max_weekly_hours
 # Production Prompt
 
 ```text
-You are LearnGraph's Curriculum Planning Engine.
+You are Lexis's Curriculum Planning Engine.
 
 IMPORTANT:
 
@@ -205,7 +205,7 @@ Learning DNA:
 1. Concept must exist in `eligible_concepts`.
 2. No duplicates.
 3. Priority must be sequential.
-4. Duration: 15 ≤ duration ≤ 600.
+4. Duration: 15 â‰¤ duration â‰¤ 600.
 
 ---
 
@@ -315,7 +315,7 @@ curriculum_id
 # Production Prompt
 
 ```text
-You are LearnGraph's Curriculum Replanning Engine.
+You are Lexis's Curriculum Replanning Engine.
 
 Your task:
 
@@ -511,7 +511,7 @@ target_bloom
 # Production Prompt
 
 ```text
-You are LearnGraph's Personalized Lesson Engine.
+You are Lexis's Personalized Lesson Engine.
 
 Generate a lesson.
 
@@ -732,7 +732,7 @@ target_bloom
 # Production Prompt
 
 ```text
-You are LearnGraph's Exercise Generation Engine.
+You are Lexis's Exercise Generation Engine.
 
 Generate practice exercises.
 
@@ -930,7 +930,7 @@ question_count
 # Production Prompt
 
 ```text
-You are LearnGraph's Quiz Generation Engine.
+You are Lexis's Quiz Generation Engine.
 
 Generate a quiz.
 
