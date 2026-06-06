@@ -34,7 +34,7 @@ export default function SettingsPage() {
 
     const token = getToken(session);
     getMe(token)
-      .then(({ user }) => {
+      .then((user) => {
         setForm((f) => ({
           ...f,
           name:                user.name,

@@ -56,7 +56,7 @@ export default function LibraryPage() {
         setUnreadCount(
           (notifData.notifications ?? []).filter((n) => !n.read).length
         );
-        setGlobalStreak(userData.user?.globalStreak ?? 0);
+        setGlobalStreak(userData.globalStreak ?? 0);
         setLoading(false);
       })
       .catch((err: ApiError) => {

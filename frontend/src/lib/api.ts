@@ -75,15 +75,15 @@ export async function registerUser(
 // USER
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function getMe(token: string): Promise<{ user: UserDTO }> {
-  return apiGet<{ user: UserDTO }>("/users/me", { token });
+export async function getMe(token: string): Promise<UserDTO> {
+  return apiGet<UserDTO>("/users/me", { token });
 }
 
 export async function updateMe(
   token: string,
   data: UserUpdateDTO
-): Promise<{ user: UserDTO }> {
-  return apiPatch<{ user: UserDTO }>("/users/me", data, { token });
+): Promise<UserDTO> {
+  return apiPatch<UserDTO>("/users/me", data, { token });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
