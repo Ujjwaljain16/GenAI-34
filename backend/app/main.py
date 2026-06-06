@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
 
 app = FastAPI(
     title="Lexis AI API",
@@ -16,6 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.api import auth, users
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "app": "lexis"}
+
+app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(users.router, prefix=settings.API_V1_STR)
