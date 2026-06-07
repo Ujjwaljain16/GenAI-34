@@ -20,12 +20,54 @@ config.set_main_option("sqlalchemy.url", settings.ASYNC_DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
+# Import ALL models so their tables are reflected in Base.metadata.
+# Without this, autogenerate will not detect new tables and will
+# incorrectly try to drop tables it doesn't know about.
 from app.models.base import Base
-from app.models.user import User
+import app.models  # noqa: F401 - ensures all submodules register with Base.metadata
+
 target_metadata = Base.metadata
+
+# Tables that exist in the DB (owned by schema.sql) but are NOT
+# managed by SQLAlchemy ORM models. We tell Alembic to ignore
+# them during autogenerate so it doesn't emit spurious DROP TABLE.
+_SCHEMA_SQL_ONLY_TABLES = {
+    "chapters",
+    "source_chunks",
+    "concept_chunks",
+    "generated_questions",
+    "graph_versions",
+    "graph_validation_results",
+    "graph_repair_log",
+    "learner_profiles",
+    "lesson_sessions",
+    "tutor_interactions",
+    "assessments",
+    "assessment_responses",
+    "assessment_outcomes",
+    "user_concept_state",
+    "concept_mastery",
+    "concept_fsrs",
+    "fsrs_reviews",
+    "mastery_events",
+    "content_completions",
+    "daily_activity",
+    "learning_streaks",
+    "book_streaks",
+    "progress_snapshots",
+    "notifications",
+    "curriculum_plans",
+}
+
+
+def include_object(obj, name, type_, reflected, compare_to):
+    """
+    Exclude tables that are owned by schema.sql (reflected=True, compare_to=None)
+    and are not part of our ORM model metadata.
+    """
+    if type_ == "table" and reflected and compare_to is None:
+        return False
+    return True
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -51,6 +93,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -58,7 +101,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=include_object,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

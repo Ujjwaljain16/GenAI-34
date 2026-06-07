@@ -74,6 +74,7 @@ class CurriculumService:
                 concept_id=i["concept_id"], title=i["title"], order_index=i["order_index"],
                 state=i["state"], mastery=i["mastery"], estimated_minutes=i["estimated_minutes"],
                 unmet_prerequisites=i.get("unmet_prerequisites", []),
+                subtopics=i.get("subtopics", []),
             )
             for i in plan.curriculum_json
         ]
