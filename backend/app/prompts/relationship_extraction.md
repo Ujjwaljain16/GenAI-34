@@ -9,7 +9,7 @@ Return a confidence score between 0.0 and 1.0 for the relationship you identify.
 If there is no meaningful relationship, indicate NO_RELATIONSHIP.
 
 TEXT CHUNK:
-{text_chunk}
+{{TEXT_CHUNK}}
 
-CONCEPT A: {concept_a_name} - {concept_a_summary}
-CONCEPT B: {concept_b_name} - {concept_b_summary}
+CONCEPT A: {{CONCEPT_A_NAME}} - {{CONCEPT_A_SUMMARY}}
+CONCEPT B: {{CONCEPT_B_NAME}} - {{CONCEPT_B_SUMMARY}}

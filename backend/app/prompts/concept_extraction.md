@@ -13,4 +13,4 @@ Only extract concepts that are explicitly discussed or strongly implied in the t
 Do not hallucinate concepts that are not present.
 
 TEXT CHUNK:
-{text_chunk}
+{{TEXT_CHUNK}}
