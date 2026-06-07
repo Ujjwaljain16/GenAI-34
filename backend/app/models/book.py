@@ -1,6 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, func, Text
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, func, Text, Boolean
+from sqlalchemy.dialects.postgresql import UUID, ENUM, JSONB
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
@@ -70,3 +70,80 @@ class UserBook(Base):
     pinned_graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="RESTRICT"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Chapter(Base):
+    __tablename__ = "chapters"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    book_id = Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), nullable=False)
+    chapter_number = Column(Integer, nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text)
+    estimated_minutes = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class BookUpload(Base):
+    __tablename__ = "book_uploads"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    book_id = Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"))
+    original_filename = Column(Text, nullable=False)
+    storage_path = Column(Text, nullable=False)
+    file_size_bytes = Column(Integer)
+    mime_type = Column(Text)
+    upload_status = Column(ENUM('PENDING', 'STORED', 'FAILED', name='upload_status', create_type=False), nullable=False, default='PENDING')
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class GraphValidationResult(Base):
+    __tablename__ = "graph_validation_results"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"))
+    rule_code = Column(Text, nullable=False)
+    passed = Column(Boolean, nullable=False)
+    severity = Column(Text, nullable=False)
+    detail = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class GraphRepairLog(Base):
+    __tablename__ = "graph_repair_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"))
+    operation = Column(Text, nullable=False)
+    artifact_id = Column(UUID(as_uuid=True))
+    reason = Column(Text, nullable=False)
+    before_value = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class GraphVersionEvent(Base):
+    __tablename__ = "graph_version_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"))
+    event_type = Column(Text, nullable=False)
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    notes = Column(Text)
+    metadata_ = Column("metadata", JSONB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class GraphAuditEvent(Base):
+    __tablename__ = "graph_audit_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"))
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    action = Column(Text, nullable=False)
+    entity_type = Column(Text, nullable=False)
+    entity_id = Column(UUID(as_uuid=True))
+    before_value = Column(JSONB)
+    after_value = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

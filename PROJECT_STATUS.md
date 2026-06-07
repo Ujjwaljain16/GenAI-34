@@ -94,9 +94,10 @@ alembic stamp head   # tell Alembic the DB is at head
 alembic upgrade head
 ```
 
-### Schema vs ORM Gap
-`schema.sql` remains the source-of-truth documentation for the full schema.
-Several tables (e.g. `source_chunks`, `chapters`, `graph_validation_results`, `notifications`) exist in `schema.sql` but are not yet ported to SQLAlchemy ORM models — they are accessed via raw `text()` queries. This is a known gap; migrating them is a future task.
+### Schema vs ORM Gap (✅ Closed)
+`schema.sql` remains the source-of-truth documentation for the full schema. However, **all tables** have now been ported to SQLAlchemy ORM models (as of this commit).
+- `backend/migrations/env.py` no longer uses an exclusion hook.
+- Alembic `autogenerate` is now fully authoritative across the entire database.
 
 ---
 
@@ -111,9 +112,8 @@ Several tables (e.g. `source_chunks`, `chapters`, `graph_validation_results`, `n
 2. **Ingestion batching for huge books** ✅ *Done* — see above. The pipeline is now resumable and rate-limit safe.
 3. **Curriculum + Daily Plan reliability** ✅ *Fixed* — subtopics and JSON mutation bugs resolved.
 4. **Dashboard / Streaks / Real Notifications** — currently functional but needs UX revision and edge-case hardening.
-5. **Reconcile `schema.sql` ↔ Alembic** — gradually port remaining raw-SQL tables to SQLAlchemy ORM models so autogenerate becomes fully authoritative.
-6. **API-level integration tests** — coverage gap; unit tests + evals + manual QA is not enough for CI/CD confidence.
-7. **Gemini cost optimization** — each interactive lesson/tutor step is a live call. Consider pre-generation or caching for demos on the free tier (≈15 RPM).
+5. **API-level integration tests** — coverage gap; unit tests + evals + manual QA is not enough for CI/CD confidence.
+6. **Gemini cost optimization** — each interactive lesson/tutor step is a live call. Consider pre-generation or caching for demos on the free tier (≈15 RPM).
 
 ---
 
@@ -124,6 +124,7 @@ Several tables (e.g. `source_chunks`, `chapters`, `graph_validation_results`, `n
 - [x] Curriculum / Daily Plan bugs fixed.
 - [x] Worker retry with exponential backoff.
 - [x] Alembic configured; `env.py` fixed; migration `de54f380a89e` applied.
+- [x] Schema vs ORM Gap closed: all `schema.sql` tables now have SQLAlchemy ORM models.
 - [x] 38 unit tests passing; 9 eval harness targets met.
 - [ ] `backend/.env` holds Gemini key locally — **not committed**; each dev supplies their own.
 - [ ] Graph editing via chat — not yet implemented.
