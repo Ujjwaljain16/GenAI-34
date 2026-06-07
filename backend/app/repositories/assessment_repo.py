@@ -72,6 +72,20 @@ class AssessmentRepository:
         )
         return result.scalars().first()
 
+    async def get_active_assessment(self, user_id: str, book_id: str) -> Optional[Assessment]:
+        """Most recent IN_PROGRESS assessment for this user+book (for resume)."""
+        result = await self.session.execute(
+            select(Assessment)
+            .where(
+                Assessment.user_id == user_id,
+                Assessment.book_id == book_id,
+                Assessment.status == "IN_PROGRESS",
+            )
+            .order_by(Assessment.created_at.desc())
+            .limit(1)
+        )
+        return result.scalars().first()
+
     # ---- questions ----------------------------------------------------------
 
     async def create_question(self, question: GeneratedQuestion) -> GeneratedQuestion:

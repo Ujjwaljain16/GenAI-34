@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Loader2, ChevronRight, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,9 +70,15 @@ export default function AssessmentQuestionPage() {
   const [nextLoading, setNextLoading] = useState(false);
   const [error, setError]             = useState("");
 
+  const startedRef = useRef(false);
   useEffect(() => {
     const token = getToken(session);
     if (!token) return;
+    // Start exactly once per mount — NextAuth can re-emit `session` with a new
+    // object identity, which would otherwise re-start the assessment and swap
+    // the question out from under the user.
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     startAssessment(token, bookId)
       .then((data) => {
