@@ -1,0 +1,26 @@
+{
+  "dataset_id": "tutor_v1",
+  "task": "socratic_tutor",
+  "samples": [
+    {
+      "id": "tu1",
+      "concept_name": "Recursion",
+      "concept_summary": "A function that calls itself with a base case to terminate.",
+      "source_text": "A recursive function must have a base case; without it the recursion never stops and the call stack overflows.",
+      "mastery": 0.3,
+      "hint_level": 1,
+      "student_message": "What happens if a recursive function has no base case?",
+      "answer": "stack overflow"
+    },
+    {
+      "id": "tu2",
+      "concept_name": "Time Complexity",
+      "concept_summary": "Big-O describes how runtime grows with input size.",
+      "source_text": "Quicksort is O(n log n) on average but O(n^2) in the worst case when the pivot is poorly chosen.",
+      "mastery": 0.5,
+      "hint_level": 2,
+      "student_message": "Is quicksort always n log n?",
+      "answer": "O(n^2)"
+    }
+  ]
+}

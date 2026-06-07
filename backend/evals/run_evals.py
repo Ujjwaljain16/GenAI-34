@@ -22,7 +22,7 @@ import statistics
 from datetime import datetime, timezone
 from typing import Dict, List
 
-from evals.scorers import grounded, fuzzy_match, pct
+from evals.scorers import grounded, fuzzy_match, pct, leaks
 
 GOLDEN_DIR = os.path.join(os.path.dirname(__file__), "golden")
 
@@ -34,10 +34,13 @@ TARGETS = {
     "assessment_question_generator": {"schema_valid": 99.0, "mcq_structural": 100.0, "concept_grounded": 98.0, "has_explanation": 90.0, "difficulty_echo": 95.0},
     "assessment_evaluator": {"exact_agreement": 90.0, "binary_agreement": 90.0, "score_sane": 90.0},
     "learning_dna_generator": {"evidence_coverage": 95.0, "unsupported_claims": 0.0, "strength_grounding": 90.0, "weakness_grounding": 90.0},
+    "lesson_generator": {"schema_valid": 99.0, "completeness": 100.0, "concept_grounded": 95.0, "has_misconceptions": 90.0},
+    "socratic_tutor": {"schema_valid": 99.0, "answer_leakage": 0.0, "asks_followup": 90.0},
+    "hint_generator": {"schema_valid": 99.0, "answer_leakage": 0.0, "progression": 90.0},
 }
 
 # Lower-is-better metrics (target is a ceiling).
-LOWER_IS_BETTER = {"hallucination_rate", "unsupported_claims"}
+LOWER_IS_BETTER = {"hallucination_rate", "unsupported_claims", "answer_leakage"}
 
 
 def _load(task_file: str) -> dict:
@@ -190,6 +193,72 @@ async def eval_learning_dna(allm) -> Dict[str, float]:
 
 
 # ---------------------------------------------------------------------------
+# Learning-layer tasks (LessonLLM — async)
+# ---------------------------------------------------------------------------
+
+async def eval_lesson(llm) -> Dict[str, float]:
+    data = _load("lesson.json")
+    schema_ok, complete, grounded_c, has_misc = [], [], [], []
+    for s in data["samples"]:
+        try:
+            out = await llm.generate_lesson(s["concept_name"], s["concept_summary"],
+                                            s["source_text"], s["mastery"], [], s["target_bloom"])
+            schema_ok.append(100.0)
+        except Exception as e:  # noqa: BLE001
+            print(f"  [{s['id']}] FAILED: {e}"); schema_ok.append(0.0); continue
+        full = (out.introduction and out.mental_model and out.core_explanation
+                and out.worked_examples and out.practice_exercises and out.summary and out.key_takeaways)
+        complete.append(100.0 if full else 0.0)
+        grounded_c.append(100.0 if grounded(s["concept_name"], out.introduction, out.core_explanation, out.summary) else 0.0)
+        has_misc.append(100.0 if out.common_mistakes else 0.0)
+        print(f"  [{s['id']}] complete={complete[-1]==100.0} examples={len(out.worked_examples)} mistakes={len(out.common_mistakes)}")
+    return {"schema_valid": _avg(schema_ok), "completeness": _avg(complete),
+            "concept_grounded": _avg(grounded_c), "has_misconceptions": _avg(has_misc)}
+
+
+async def eval_tutor(llm) -> Dict[str, float]:
+    data = _load("tutor.json")
+    schema_ok, leak, followup = [], [], []
+    for s in data["samples"]:
+        try:
+            out = await llm.tutor_turn(s["concept_name"], s["concept_summary"], s["source_text"],
+                                       s["mastery"], "", s["hint_level"], s["student_message"])
+            schema_ok.append(100.0)
+        except Exception as e:  # noqa: BLE001
+            print(f"  [{s['id']}] FAILED: {e}"); schema_ok.append(0.0); continue
+        leaked = leaks(s["answer"], out.tutor_response, out.hint)   # hint_level < 4 -> must not leak
+        leak.append(100.0 if leaked else 0.0)
+        followup.append(100.0 if out.follow_up_question.strip() else 0.0)
+        print(f"  [{s['id']}] leaked={leaked} followup={followup[-1]==100.0} resp={out.tutor_response[:70]!r}")
+    return {"schema_valid": _avg(schema_ok), "answer_leakage": _avg(leak), "asks_followup": _avg(followup)}
+
+
+async def eval_hint(llm) -> Dict[str, float]:
+    data = _load("hint.json")
+    schema_ok, leak, progression = [], [], []
+    for s in data["samples"]:
+        hints = []
+        ok = True
+        for level in (1, 2, 3, 4):
+            try:
+                out = await llm.generate_hint(s["concept_name"], s["question"], level, hints)
+                hints.append(out.hint)
+            except Exception as e:  # noqa: BLE001
+                print(f"  [{s['id']}] L{level} FAILED: {e}"); ok = False; break
+        schema_ok.append(100.0 if ok and len(hints) == 4 else 0.0)
+        if not ok or len(hints) != 4:
+            continue
+        any_leak = any(leaks(s["answer"], h) for h in hints[:3])  # levels 1-3 must not leak
+        leak.append(100.0 if any_leak else 0.0)
+        # progression: hints are distinct and generally get longer/more specific
+        distinct = len({h.strip().lower() for h in hints}) == 4
+        grew = len(hints[-1]) >= len(hints[0])
+        progression.append(100.0 if (distinct and grew) else 0.0)
+        print(f"  [{s['id']}] leak={any_leak} distinct={distinct} lens={[len(h) for h in hints]}")
+    return {"schema_valid": _avg(schema_ok), "answer_leakage": _avg(leak), "progression": _avg(progression)}
+
+
+# ---------------------------------------------------------------------------
 # Orchestration + scorecard
 # ---------------------------------------------------------------------------
 
@@ -221,10 +290,10 @@ def _print_scorecard(results: Dict[str, Dict[str, float]]):
 async def main(tasks: List[str]):
     from app.services.llm_extractor import LLMExtractor
     from app.services.assessment_llm import AssessmentLLM
+    from app.services.lesson_llm import LessonLLM
 
     results: Dict[str, Dict[str, float]] = {}
-    extractor = None
-    allm = None
+    extractor = allm = lllm = None
 
     def get_extractor():
         nonlocal extractor
@@ -238,6 +307,12 @@ async def main(tasks: List[str]):
             allm = AssessmentLLM()
         return allm
 
+    def get_lllm():
+        nonlocal lllm
+        if lllm is None:
+            lllm = LessonLLM()
+        return lllm
+
     plan = [
         ("concept_extraction", lambda: eval_concept_extraction(get_extractor())),
         ("relationship_extraction", lambda: eval_relationship_extraction(get_extractor())),
@@ -245,6 +320,9 @@ async def main(tasks: List[str]):
         ("assessment_question_generator", lambda: eval_assessment_question(get_allm())),
         ("assessment_evaluator", lambda: eval_assessment_evaluator(get_allm())),
         ("learning_dna_generator", lambda: eval_learning_dna(get_allm())),
+        ("lesson_generator", lambda: eval_lesson(get_lllm())),
+        ("socratic_tutor", lambda: eval_tutor(get_lllm())),
+        ("hint_generator", lambda: eval_hint(get_lllm())),
     ]
     for name, fn in plan:
         if tasks and name not in tasks:

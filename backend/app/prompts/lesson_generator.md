@@ -14,6 +14,8 @@ Requirements:
 1. Adapt depth to the learner's mastery (lower mastery = more scaffolding).
 2. Build toward the target Bloom level.
 3. Address the known misconceptions explicitly (prevention).
+4. ALWAYS populate common_mistakes with at least 2 mistakes learners typically
+   make with this concept, even when no specific misconceptions are provided.
 4. Use progressive explanation; avoid unnecessary jargon.
 5. Stay faithful to the SOURCE TEXT; do not invent facts beyond it and the concept.
 6. Include at least one worked example and one practice exercise.
