@@ -76,3 +76,27 @@ def fuzzy_match(a: str, candidates: Iterable[str]) -> bool:
 
 def pct(num: float, den: float) -> float:
     return round(100.0 * num / den, 1) if den else 0.0
+
+
+def leaks(answer: str, *texts: str) -> bool:
+    """True if the answer is revealed in the texts (used for tutor/hint leakage).
+
+    Leak = the full normalized answer appears, OR >= 70% of the answer's
+    significant (stemmed) words appear across the texts.
+    """
+    hay = " " + " ".join(normalize(t) for t in texts) + " "
+    if not hay.strip():
+        return False
+    na = normalize(answer)
+    if na and na in hay:
+        return True
+    # Symbolic / short answers (e.g. "O(n^2)" -> "on2"): space-insensitive match.
+    na_ns = na.replace(" ", "")
+    if len(na_ns) >= 3 and na_ns in hay.replace(" ", ""):
+        return True
+    hay_stems = {stem(w) for w in hay.split()}
+    ws = [stem(w) for w in words(answer)]
+    if not ws:
+        return False
+    hits = sum(1 for w in ws if w in hay_stems)
+    return hits / len(ws) >= 0.70
