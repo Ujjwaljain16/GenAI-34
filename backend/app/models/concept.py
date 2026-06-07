@@ -35,3 +35,42 @@ class ConceptEdge(Base):
     weight = Column(Numeric(5, 4), nullable=False, default=1.0)
     is_verified = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class RawConcept(Base):
+    __tablename__ = "raw_concepts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"), nullable=False)
+    source_chunk_id = Column(UUID(as_uuid=True), nullable=False) # Not FK to avoid NoReferencedTableError since SourceChunk model is missing
+    name = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False)
+    difficulty_level = Column(Integer, nullable=False)
+    subtopics = Column(JSONB, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class RelationshipCandidate(Base):
+    __tablename__ = "relationship_candidates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"), nullable=False)
+    source_concept_id = Column(UUID(as_uuid=True), ForeignKey("concepts.id", ondelete="CASCADE"), nullable=False)
+    target_concept_id = Column(UUID(as_uuid=True), ForeignKey("concepts.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(50), nullable=False, default="PENDING")
+    confidence = Column(Numeric(5, 4), nullable=True)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class EvaluatedPair(Base):
+    __tablename__ = "evaluated_pairs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    graph_version_id = Column(UUID(as_uuid=True), ForeignKey("graph_versions.id", ondelete="CASCADE"), nullable=False)
+    source_concept_id = Column(UUID(as_uuid=True), ForeignKey("concepts.id", ondelete="CASCADE"), nullable=False)
+    target_concept_id = Column(UUID(as_uuid=True), ForeignKey("concepts.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(50), nullable=False)
+    confidence = Column(Numeric(5, 4), nullable=True)
+    llm_version = Column(String(50), nullable=True)
+    evaluated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
