@@ -1,3 +1,4 @@
+from sqlalchemy import PrimaryKeyConstraint, UniqueConstraint, Index, CheckConstraint, ForeignKeyConstraint
 import uuid
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, Date, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -17,6 +18,32 @@ class DailyPlan(Base):
 
 class CurriculumPlan(Base):
     __tablename__ = "curriculum_plans"
+    __table_args__ = (
+    
+            CheckConstraint('version > 0', name='chk_curriculum_version'),
+    
+            ForeignKeyConstraint(['book_id'], ['books.id'], ondelete='CASCADE', name='curriculum_plans_book_id_fkey'),
+    
+            ForeignKeyConstraint(['generated_from_assessment'], ['assessments.id'], ondelete='SET NULL', name='curriculum_plans_generated_from_assessment_fkey'),
+    
+            ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE', name='curriculum_plans_user_id_fkey'),
+    
+            PrimaryKeyConstraint('id', name='curriculum_plans_pkey'),
+    
+            UniqueConstraint('user_id', 'book_id', 'version', name='uq_curriculum_user_book_version'),
+    
+            Index('idx_curriculum_book', 'book_id'),
+    
+            Index('idx_curriculum_json', 'curriculum_json', postgresql_using='gin'),
+    
+            Index('idx_curriculum_user', 'user_id'),
+    
+            Index('idx_curriculum_user_book_version', 'user_id', 'book_id', 'version'),
+    
+            {'comment': 'Generated learning order for a user on a book.'}
+    
+        )
+
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

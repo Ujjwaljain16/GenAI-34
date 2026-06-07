@@ -1,3 +1,4 @@
+from sqlalchemy import PrimaryKeyConstraint, UniqueConstraint, Index, CheckConstraint, ForeignKeyConstraint
 from app.models.base import Base
 from app.models.user import User, ContentCompletion, DailyActivity, LearningStreak, BookStreak, ProgressSnapshot, Notification
 from app.models.book import Book, GraphBuildJob, GraphVersion, UserBook, Chapter, BookUpload, GraphValidationResult, GraphRepairLog, GraphVersionEvent, GraphAuditEvent

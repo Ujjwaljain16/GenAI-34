@@ -99,6 +99,16 @@ alembic upgrade head
 - `backend/migrations/env.py` no longer uses an exclusion hook.
 - Alembic `autogenerate` is now fully authoritative across the entire database.
 
+### 🛑 Critical Developer Instructions for Schema Modifications
+To prevent future drift between the database and SQLAlchemy ORM models, **all contributors must follow this strict workflow**:
+1. **Source of Truth**: `backend/db/schema.sql` is the absolute source of truth. Always design your schema changes there first.
+2. **Manual ORM Synchronization**: Do NOT rely on Alembic `--autogenerate` to build your ORM classes. After updating `schema.sql`, manually update the SQLAlchemy models (in `backend/app/models/`) to perfectly mirror the DB schema.
+   - Pay strict attention to `__table_args__` for exact `Index`, `UniqueConstraint`, and `CheckConstraint` mappings.
+   - Ensure explicit alignment of `server_default` and column types (e.g. `Integer` vs `BigInteger`).
+3. **Validation (The Acid Test)**: Use `alembic revision --autogenerate` purely as a *validation tool*.
+   - **Before committing**, always run: `alembic revision --autogenerate -m "verify_alignment"`
+   - If Alembic detects *any* unexpected schema modifications (dropped columns, missing constraints), **do not commit**. Your ORM models are drifting from the database. Fix the ORM models until the autogenerate diff is empty.
+
 ---
 
 ## 🚧 Known Limitations / Remaining Work

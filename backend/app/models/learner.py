@@ -1,3 +1,4 @@
+from sqlalchemy import PrimaryKeyConstraint, UniqueConstraint, Index, CheckConstraint, ForeignKeyConstraint
 import uuid
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean, String, func
 from sqlalchemy.dialects.postgresql import UUID, ENUM, JSONB
@@ -23,6 +24,26 @@ class LearnerProfile(Base):
 
 class LearningDNA(Base):
     __tablename__ = "learning_dna"
+    __table_args__ = (
+    
+            CheckConstraint('dna_version > 0', name='chk_dna_version'),
+    
+            ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE', name='learning_dna_user_id_fkey'),
+    
+            PrimaryKeyConstraint('id', name='learning_dna_pkey'),
+    
+            UniqueConstraint('user_id', 'dna_version', name='uq_user_dna_version'),
+    
+            Index('idx_learning_dna_data', 'dna_data', postgresql_using='gin'),
+    
+            Index('idx_learning_dna_user', 'user_id'),
+    
+            Index('uq_active_dna_per_user', 'user_id', postgresql_where='(is_active = true)', unique=True),
+    
+            {'comment': 'Versioned personalized learner model. Append-only.'}
+    
+        )
+
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)

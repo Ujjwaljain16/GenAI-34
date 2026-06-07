@@ -1,3 +1,4 @@
+from sqlalchemy import PrimaryKeyConstraint, UniqueConstraint, Index, CheckConstraint, ForeignKeyConstraint
 import uuid
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, Float, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import UUID, ENUM
@@ -43,6 +44,30 @@ class FsrsReview(Base):
 
 class MasteryEvent(Base):
     __tablename__ = "mastery_events"
+    __table_args__ = (
+    
+            CheckConstraint('new_mastery IS NULL OR new_mastery >= 0::numeric AND new_mastery <= 1::numeric', name='chk_new_mastery'),
+    
+            CheckConstraint('previous_mastery IS NULL OR previous_mastery >= 0::numeric AND previous_mastery <= 1::numeric', name='chk_prev_mastery'),
+    
+            ForeignKeyConstraint(['concept_id'], ['concepts.id'], ondelete='CASCADE', name='mastery_events_concept_id_fkey'),
+    
+            ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE', name='mastery_events_user_id_fkey'),
+    
+            PrimaryKeyConstraint('id', name='mastery_events_pkey'),
+    
+            Index('idx_mastery_events_concept', 'concept_id'),
+    
+            Index('idx_mastery_events_created', 'created_at'),
+    
+            Index('idx_mastery_events_user', 'user_id'),
+    
+            {'comment': 'Audit trail for every mastery_score change. Useful for '
+    
+                    'visualization and debugging.'}
+    
+        )
+
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
