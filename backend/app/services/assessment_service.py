@@ -313,9 +313,21 @@ class AssessmentService:
             await self.repo.upsert_node_state(
                 user_id, o.concept_id, gv, o.node_state)
 
-        # 3. Best-effort Neo4j HAS_MASTERY init (graph store integration is WIP;
-        #    Postgres is source of truth, so failure here must not break completion).
-        # TODO(PR: graph): project mastery into Neo4j HAS_MASTERY edges.
+        # 3. Best-effort Neo4j projection (Postgres is source of truth; a Neo4j
+        #    outage must not break completion — eventually consistent per AGENT.md).
+        try:
+            from app.services.neo4j_projection import project_book_graph, project_user_state
+            concept_dicts = [{"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level}
+                             for c in concepts]
+            await project_book_graph(str(assessment.book_id), concept_dicts, edges)
+            await project_user_state(
+                user_id,
+                [{"concept_id": o.concept_id, "score": o.mastery_estimate, "state": o.placement_state}
+                 for o in outcomes],
+                [],
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Neo4j projection skipped at assessment complete: %s", e)
 
         # 4-5. Generate + store Learning DNA (deterministic fallback on failure).
         dna_data = await self._build_dna(user_id, assessment, by_id, outcomes, db_responses)
