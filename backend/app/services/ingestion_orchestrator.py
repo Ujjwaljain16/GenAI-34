@@ -174,7 +174,14 @@ class IngestionOrchestrator:
                 
                 rel = self.llm_extractor.extract_relationship(chunk_content, src_c, tgt_c)
                 
-                if rel.relationship_type in ["PREREQUISITE", "RELATED"] and rel.confidence > 0.5:
+                # Prerequisite edges form the DAG (kept at moderate confidence).
+                # RELATED edges are informational only and tend to be over-produced,
+                # so keep just the strongest to avoid a cluttered "hairball" graph.
+                keep_edge = (
+                    (rel.relationship_type == "PREREQUISITE" and rel.confidence > 0.5)
+                    or (rel.relationship_type == "RELATED" and rel.confidence >= 0.85)
+                )
+                if keep_edge:
                     edge_id = str(uuid.uuid4())
                     edge_dict = {
                         "id": edge_id,
