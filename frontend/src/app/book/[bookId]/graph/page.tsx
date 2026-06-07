@@ -96,8 +96,10 @@ export default function GraphPage() {
       });
 
     const nodeIds = new Set(flowNodes.map((n) => n.id));
+    // The map shows the prerequisite DAG (System Design §E). RELATED edges are
+    // informational only and add visual noise, so they are not drawn here.
     const flowEdges: Edge[] = kgEdges
-      .filter((e) => nodeIds.has(e.fromNodeId) && nodeIds.has(e.toNodeId))
+      .filter((e) => e.type === "prerequisite" && nodeIds.has(e.fromNodeId) && nodeIds.has(e.toNodeId))
       .map((e) => ({
         id: e.id ?? `${e.fromNodeId}-${e.toNodeId}`,
         source: e.fromNodeId,

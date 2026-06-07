@@ -208,7 +208,12 @@ export async function getBookStatus(token: string, bookId: string): Promise<Book
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getGraph(token: string, bookId: string): Promise<GraphDTO> {
-  return apiGet<GraphDTO>(`/books/${bookId}/graph`, { token });
+  const g = await apiGet<GraphDTO>(`/books/${bookId}/graph`, { token });
+  // Backend returns the raw enum (PREREQUISITE/RELATED); UI expects lowercase.
+  return {
+    ...g,
+    edges: (g.edges ?? []).map((e) => ({ ...e, type: String(e.type).toLowerCase() as KGEdgeDTO["type"] })),
+  };
 }
 
 export async function confirmGraph(token: string, bookId: string): Promise<{ success: true }> {
