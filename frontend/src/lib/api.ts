@@ -134,6 +134,7 @@ export async function getBook(token: string, bookId: string): Promise<{ book: Bo
     apiGet<PersonalGraph>(`/books/${bookId}/knowledge-graph`, { token }).catch(() => ({ nodes: [], edges: [], summary: {} as PersonalGraphSummary })),
   ]);
 
+  const graphEdges = graph.edges ?? [];
   const nodes = (graph.nodes ?? []).map((n, idx) => ({
     id: n.id,
     bookId,
@@ -144,8 +145,12 @@ export async function getBook(token: string, bookId: string): Promise<{ book: Bo
     orderIndex: idx,
     sectionName: null,
     createdAt: today(),
-    outgoingEdges: [],
-    incomingEdges: [],
+    outgoingEdges: graphEdges
+      .filter((e) => e.fromNodeId === n.id)
+      .map((e) => ({ id: `${e.fromNodeId}-${e.toNodeId}`, fromNodeId: e.fromNodeId, toNodeId: e.toNodeId, type: String(e.type).toLowerCase() as KGEdgeDTO["type"], weight: 1, confidence: 1 })),
+    incomingEdges: graphEdges
+      .filter((e) => e.toNodeId === n.id)
+      .map((e) => ({ id: `${e.fromNodeId}-${e.toNodeId}`, fromNodeId: e.fromNodeId, toNodeId: e.toNodeId, type: String(e.type).toLowerCase() as KGEdgeDTO["type"], weight: 1, confidence: 1 })),
     userNodeStates: [
       {
         id: `${n.id}-state`,
