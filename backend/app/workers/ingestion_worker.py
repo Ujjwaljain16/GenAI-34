@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.core.db import AsyncSessionLocal as async_session_maker
 from app.services.ingestion_orchestrator import IngestionOrchestrator
-from app.services.storage import LocalStorageProvider
+from app.services.storage import get_storage_provider
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def claim_next_job(session: AsyncSession):
 
 async def worker_loop():
     logger.info("Starting Ingestion Worker Loop...")
-    storage_provider = LocalStorageProvider()
+    storage_provider = get_storage_provider()
     orchestrator = IngestionOrchestrator(storage_provider=storage_provider)
     
     while True:

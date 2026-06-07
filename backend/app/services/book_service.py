@@ -36,11 +36,11 @@ class BookService:
         )
 
     async def upload_book_file(self, book_id: str, user_id: str, file: UploadFile) -> JobStatusDTO:
-        from app.services.storage import LocalStorageProvider
+        from app.services.storage import get_storage_provider
         from sqlalchemy import text
         import uuid
-        
-        storage_provider = LocalStorageProvider()
+
+        storage_provider = get_storage_provider()
         
         # 1. Save the file locally
         storage_path = await storage_provider.save(file, user_id)
