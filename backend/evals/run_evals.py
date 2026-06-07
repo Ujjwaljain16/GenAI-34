@@ -134,7 +134,13 @@ async def eval_assessment_question(allm) -> Dict[str, float]:
             structural.append(100.0 if ok else 0.0)
         else:
             structural.append(100.0 if (not out.options and out.expected_answer.strip()) else 0.0)
-        grounded_q.append(100.0 if grounded(s["concept_name"], out.question, " ".join(out.options or []), out.expected_answer) else 0.0)
+        # Deterministic name-match first; fall back to an LLM judge for purity
+        # (a question can test a concept without naming it verbatim).
+        is_grounded = grounded(s["concept_name"], out.question, " ".join(out.options or []), out.expected_answer, out.explanation)
+        if not is_grounded:
+            from evals.judge import judge_concept_purity
+            is_grounded = judge_concept_purity(s["concept_name"], s["concept_summary"], out.question)
+        grounded_q.append(100.0 if is_grounded else 0.0)
         has_expl.append(100.0 if out.explanation.strip() else 0.0)
         diff_echo.append(100.0 if out.difficulty.strip().lower() == s["difficulty"].lower() else 0.0)
         print(f"  [{s['id']}] {s['question_type']} grounded={grounded_q[-1]==100.0} Q={out.question[:70]!r}")
