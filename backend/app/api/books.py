@@ -77,6 +77,40 @@ async def get_book_graph(
     service = BookService(BookRepository(session))
     return await service.get_book_graph(book_id)
 
+@router.post("/{book_id}/graph/sync-neo4j")
+async def sync_graph_to_neo4j(
+    book_id: str,
+    user_id: str = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_db),
+):
+    """Project this book's graph + the caller's mastery state into Neo4j.
+    Postgres remains the source of truth; this is a best-effort projection."""
+    from app.services.neo4j_projection import project_book_graph, project_user_state
+
+    repo = GraphRepository(session)
+    if not await repo.is_enrolled(user_id, book_id):
+        raise HTTPException(status_code=404, detail="Book not found in your library")
+    gv = await repo.active_graph_version(book_id)
+    if gv is None:
+        raise HTTPException(status_code=409, detail="Knowledge graph not built yet")
+
+    concepts = await repo.concepts(book_id, gv)
+    edges = await repo.prerequisite_edges(book_id, gv)
+    states = await repo.node_states(user_id, book_id)
+    masteries = await repo.masteries(user_id, book_id)
+
+    concept_dicts = [{"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level} for c in concepts]
+    edge_tuples = [(str(e.from_concept_id), str(e.to_concept_id)) for e in edges]
+    mastery_rows = [{"concept_id": cid, "score": score, "state": states.get(cid, "")}
+                    for cid, (score, _lr) in masteries.items()]
+    in_progress = [cid for cid, st in states.items() if st == "IN_PROGRESS"]
+
+    book_ok = await project_book_graph(book_id, concept_dicts, edge_tuples)
+    user_ok = await project_user_state(user_id, mastery_rows, in_progress)
+    return {"bookProjected": book_ok, "userProjected": user_ok,
+            "concepts": len(concept_dicts), "edges": len(edge_tuples)}
+
+
 @router.get("/{book_id}/knowledge-graph", response_model=PersonalGraphDTO)
 async def get_personal_knowledge_graph(
     book_id: str,
