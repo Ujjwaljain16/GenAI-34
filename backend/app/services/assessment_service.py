@@ -139,22 +139,37 @@ class AssessmentService:
         concept_ids = [str(c.id) for c in concepts]
         by_id = {str(c.id): c for c in concepts}
 
-        assessment = Assessment(
-            user_id=user_id,
-            book_id=book_id,
-            assessment_type="INITIAL",
-            status="IN_PROGRESS",
-            started_at=datetime.now(timezone.utc),
-        )
-        await self.repo.create_assessment(assessment)
+        # Resume an in-progress assessment if one exists; otherwise start fresh.
+        assessment = await self.repo.get_active_assessment(user_id, book_id)
+        if assessment is None:
+            assessment = Assessment(
+                user_id=user_id,
+                book_id=book_id,
+                assessment_type="INITIAL",
+                status="IN_PROGRESS",
+                started_at=datetime.now(timezone.utc),
+            )
+            await self.repo.create_assessment(assessment)
+            db_responses = []
+        else:
+            db_responses = await self.repo.get_responses(str(assessment.id))
 
-        nxt = walk.next_question(concept_ids, edges, [])
+        # Compute the next unanswered question from responses so far (resume-safe).
+        qtype_by_id = {}
+        for r in db_responses:
+            qid = str(r.question_id)
+            if qid not in qtype_by_id:
+                q = await self.repo.get_question(qid)
+                qtype_by_id[qid] = q.question_type if q else "MCQ"
+        walk_responses = self._to_walk_responses(db_responses, qtype_by_id)
+
+        nxt = walk.next_question(concept_ids, edges, walk_responses)
         if nxt is None:
-            # Empty/degenerate graph — nothing to ask.
+            # Nothing left to ask (degenerate graph or already fully walked).
             return StartAssessmentResponse(
                 assessment_id=str(assessment.id),
                 question=None,
-                progress=self._progress(len(concept_ids), []),
+                progress=self._progress(len(concept_ids), db_responses),
                 completed=True,
             )
 
@@ -163,7 +178,7 @@ class AssessmentService:
         return StartAssessmentResponse(
             assessment_id=str(assessment.id),
             question=self._question_dto(question, concept),
-            progress=self._progress(len(concept_ids), []),
+            progress=self._progress(len(concept_ids), db_responses),
             completed=False,
         )
 
