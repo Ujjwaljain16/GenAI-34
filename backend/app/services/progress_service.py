@@ -12,17 +12,24 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import List
 
+from sqlalchemy import text
+
 from app.repositories.graph_repo import GraphRepository
 from app.repositories.assessment_repo import AssessmentRepository
+from app.repositories.fsrs_repo import FsrsRepository
+from app.services import fsrs as fsrs_engine
+from app.services import mastery_engine
 
 MASTERY_ON_LESSON_COMPLETE = 0.9
 MASTERED_THRESHOLD = 0.85
 
 
 class ProgressService:
-    def __init__(self, graph_repo: GraphRepository, assess_repo: AssessmentRepository):
+    def __init__(self, graph_repo: GraphRepository, assess_repo: AssessmentRepository,
+                 fsrs_repo: FsrsRepository | None = None):
         self.graph = graph_repo
         self.repo = assess_repo
+        self.fsrs = fsrs_repo or FsrsRepository(graph_repo.session)
 
     async def complete_concept(self, user_id: str, book_id: str, concept_id: str,
                                source: str = "LESSON") -> List[str]:
@@ -61,4 +68,52 @@ class ProgressService:
                     await self.repo.upsert_node_state(user_id, cid, gv, "AVAILABLE")
                     if cur == "LOCKED":
                         unlocked.append(c.name)
+
+        # Enter the spaced-repetition cycle: first successful review schedules
+        # the concept for future revision (only if not already tracked).
+        if await self.fsrs.get_state(user_id, concept_id) is None:
+            state, interval = fsrs_engine.review(fsrs_engine.init_state(), fsrs_engine.GRADE_GOOD)
+            await self.fsrs.upsert_state(user_id, concept_id, state, interval)
         return unlocked
+
+    async def record_review(self, user_id: str, book_id: str, concept_id: str, grade: int) -> dict:
+        """Grade a spaced-repetition review: update FSRS schedule + mastery, and
+        flip the node back to MASTERED on success (System Design G#31)."""
+        gv = await self.graph.active_graph_version(book_id)
+        before_row = await self.fsrs.get_state(user_id, concept_id)
+        before = fsrs_engine.FsrsState(
+            stability=before_row.stability, difficulty=before_row.difficulty,
+            retrievability=before_row.retrievability,
+            repetitions=before_row.repetitions, lapses=before_row.lapses,
+        ) if before_row else fsrs_engine.init_state()
+
+        after, interval = fsrs_engine.review(before, grade)
+        await self.fsrs.upsert_state(user_id, concept_id, after, interval)
+        await self.fsrs.log_review(user_id, concept_id, grade, before, after, source="REVISION")
+
+        # Mastery update via the canonical mastery engine.
+        prev_m = await self._current_mastery(user_id, concept_id)
+        event = "correct" if grade >= fsrs_engine.GRADE_GOOD else "wrong"
+        result = mastery_engine.update_mastery(prev_m, prev_m, event)
+        new_state = "MASTERED" if result.mastery >= mastery_engine.MASTERY_THRESHOLD else "PRACTICING"
+        await self.repo.upsert_concept_mastery(user_id, concept_id, result.mastery, new_state, source="REVISION")
+        await self.fsrs.log_mastery_event(user_id, concept_id, "REVISION", prev_m, result.mastery,
+                                          f"revision grade {grade}")
+
+        # Node state: recalled -> back to MASTERED; failed -> stays DUE for retry.
+        if gv is not None:
+            await self.repo.upsert_node_state(
+                user_id, concept_id, gv, "MASTERED" if grade >= fsrs_engine.GRADE_GOOD else "DUE")
+
+        return {
+            "concept_id": concept_id, "grade": grade,
+            "mastery": round(result.mastery, 4), "interval_days": interval,
+            "stability": after.stability, "difficulty": after.difficulty,
+        }
+
+    async def _current_mastery(self, user_id: str, concept_id: str) -> float:
+        row = await self.fsrs.session.execute(
+            text("SELECT mastery_score FROM concept_mastery WHERE user_id = :u AND concept_id = :c"),
+            {"u": user_id, "c": concept_id})
+        r = row.first()
+        return float(r[0]) if r else 0.0
