@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.api import auth, users, books, notifications, assessments, curriculum, lessons, revision
+from app.api import auth, users, books, notifications, assessments, curriculum, lessons, revision, dashboard
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -59,3 +59,4 @@ app.include_router(assessments.router, prefix=settings.API_V1_STR)
 app.include_router(curriculum.router, prefix=settings.API_V1_STR)
 app.include_router(lessons.router, prefix=settings.API_V1_STR)
 app.include_router(revision.router, prefix=settings.API_V1_STR)
+app.include_router(dashboard.router, prefix=settings.API_V1_STR)
