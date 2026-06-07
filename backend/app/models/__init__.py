@@ -6,3 +6,4 @@ from app.models.question import GeneratedQuestion
 from app.models.assessment import Assessment, AssessmentResponse, AssessmentOutcome
 from app.models.mastery import UserConceptState, ConceptMastery
 from app.models.learner import LearnerProfile, LearningDNA
+from app.models.curriculum import CurriculumPlan
