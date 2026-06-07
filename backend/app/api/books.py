@@ -136,15 +136,25 @@ async def confirm_book_graph(
         UPDATE books SET status = 'READY' WHERE id = :bid
     '''), {"bid": book_id})
     
-    # 2. Add UserNodeStates for all nodes
+    # 2. Seed the initial graph reveal: root concepts (no unmet prerequisite)
+    #    start AVAILABLE, everything downstream starts LOCKED. The assessment
+    #    refines these afterwards. (Seeding everything LOCKED would leave the
+    #    graph fully gated with no entry point before assessment.)
     await session.execute(text('''
         INSERT INTO user_concept_state (user_id, concept_id, graph_version, state)
-        SELECT :uid, id, graph_version, 'LOCKED'
-        FROM concepts
-        WHERE book_id = :bid
+        SELECT :uid, c.id, c.graph_version,
+               (CASE WHEN NOT EXISTS (
+                        SELECT 1 FROM concept_edges e
+                        WHERE e.to_concept_id = c.id
+                          AND e.edge_type = 'PREREQUISITE'
+                          AND e.book_id = c.book_id
+                          AND e.graph_version = c.graph_version
+                     ) THEN 'AVAILABLE' ELSE 'LOCKED' END)::node_state
+        FROM concepts c
+        WHERE c.book_id = :bid
         ON CONFLICT (user_id, concept_id, graph_version) DO NOTHING
     '''), {"uid": user_id, "bid": book_id})
-    
+
     await session.commit()
     return {"success": True}
 
