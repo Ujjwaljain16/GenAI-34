@@ -276,6 +276,8 @@ export interface AssessmentAnswerResponseDTO {
   correct: boolean;
   isMastered: boolean;
   explanation: string | null;
+  correctAnswer: string | null;
+  correctOption: number | null; // MCQ: 0-based index of the correct option
 }
 
 export interface AssessmentCompleteResponseDTO {
@@ -302,6 +304,7 @@ export interface PlanNodeDTO {
   lastReviewed: string | null;
   nextDue: string | null;
   recallProbability: number; // 0.0–1.0
+  subtopics?: string[];
 }
 
 export interface DailyPlanDTO {

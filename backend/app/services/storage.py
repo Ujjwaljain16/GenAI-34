@@ -55,3 +55,16 @@ class LocalStorageProvider(StorageProvider):
             os.remove(physical_path)
             return True
         return False
+
+
+def get_storage_provider() -> StorageProvider:
+    """Factory selecting the storage backend from config.
+
+    Add new backends (e.g. S3StorageProvider) here — call sites depend only on
+    the StorageProvider interface, so swapping is a one-line change.
+    """
+    from app.core.config import settings
+    backend = (settings.STORAGE_BACKEND or "local").lower()
+    if backend == "local":
+        return LocalStorageProvider(base_dir=settings.STORAGE_LOCAL_DIR)
+    raise ValueError(f"Unsupported STORAGE_BACKEND: {backend!r}")

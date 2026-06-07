@@ -1,0 +1,22 @@
+{
+  "dataset_id": "lesson_v1",
+  "task": "lesson_generator",
+  "samples": [
+    {
+      "id": "ls1",
+      "concept_name": "Recursion",
+      "concept_summary": "A technique where a function calls itself on smaller inputs, requiring a base case to terminate.",
+      "source_text": "Recursion solves a problem by reducing it to smaller instances of the same problem. A recursive function must have a base case that stops the recursion.",
+      "mastery": 0.2,
+      "target_bloom": "apply"
+    },
+    {
+      "id": "ls2",
+      "concept_name": "Binary Search",
+      "concept_summary": "An efficient O(log n) search over a sorted array by repeatedly halving the interval.",
+      "source_text": "Binary search works on sorted data. It compares the target to the middle element and discards half the array each step.",
+      "mastery": 0.6,
+      "target_bloom": "understand"
+    }
+  ]
+}

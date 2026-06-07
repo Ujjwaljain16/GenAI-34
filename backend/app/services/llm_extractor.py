@@ -81,11 +81,22 @@ class LLMExtractor:
         prompt = prompt_template.replace("{{TEXT_CHUNK}}", text_chunk)
         return self._call_with_retry(prompt, ConceptExtractionResponse)
 
+    @staticmethod
+    def _concept_field(concept: Dict[str, Any], field: str) -> str:
+        # Canonical concepts use canonical_name/canonical_summary; raw candidates
+        # use name/summary. Accept either so edge inference always gets context.
+        return str(concept.get(field) or concept.get(f"canonical_{field}") or "")
+
     def extract_relationship(self, text_chunk: str, concept_a: Dict[str, Any], concept_b: Dict[str, Any]) -> RelationshipExtractionResponse:
         prompt_template = self._load_prompt("relationship_extraction.md")
-        prompt = prompt_template.replace("{{TEXT_CHUNK}}", text_chunk)
-        prompt = prompt.replace("{{CONCEPT_A}}", concept_a.get("name", ""))
-        prompt = prompt.replace("{{CONCEPT_B}}", concept_b.get("name", ""))
+        prompt = (
+            prompt_template
+            .replace("{{TEXT_CHUNK}}", text_chunk)
+            .replace("{{CONCEPT_A_NAME}}", self._concept_field(concept_a, "name"))
+            .replace("{{CONCEPT_A_SUMMARY}}", self._concept_field(concept_a, "summary"))
+            .replace("{{CONCEPT_B_NAME}}", self._concept_field(concept_b, "name"))
+            .replace("{{CONCEPT_B_SUMMARY}}", self._concept_field(concept_b, "summary"))
+        )
         return self._call_with_retry(prompt, RelationshipExtractionResponse)
 
     def resolve_merge(self, candidates: List[Dict[str, Any]]) -> MergedConceptCandidate:
