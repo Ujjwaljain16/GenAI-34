@@ -1,0 +1,18 @@
+{
+  "dataset_id": "hint_v1",
+  "task": "hint_generator",
+  "samples": [
+    {
+      "id": "hi1",
+      "concept_name": "Recursion",
+      "question": "Why does a recursive function need a base case?",
+      "answer": "to stop the recursion and prevent a stack overflow"
+    },
+    {
+      "id": "hi2",
+      "concept_name": "Binary Search",
+      "question": "Why must the array be sorted for binary search?",
+      "answer": "so that comparing to the middle element tells you which half to discard"
+    }
+  ]
+}

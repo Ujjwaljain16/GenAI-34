@@ -77,7 +77,9 @@ export default function GraphVerifyPage() {
           },
         }));
 
-        const flowEdges: Edge[] = graph.edges.map((e) => ({
+        const flowEdges: Edge[] = graph.edges
+          .filter((e) => String(e.type).toLowerCase() === "prerequisite")
+          .map((e) => ({
           id: e.id ?? `${e.fromNodeId}-${e.toNodeId}`,
           source: e.fromNodeId,
           target: e.toNodeId,

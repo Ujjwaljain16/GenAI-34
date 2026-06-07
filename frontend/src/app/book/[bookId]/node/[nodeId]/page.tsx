@@ -1,19 +1,23 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, Lock, MessageSquare, RefreshCw, ChevronRight, Loader2, ExternalLink } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { ArrowLeft, BookOpen, Lock, MessageSquare, RefreshCw, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sidebar } from "@/components/Sidebar";
 import { NodeStateBadge } from "@/components/NodeStateBadge";
-import { timeAgo, daysUntil, formatDate } from "@/lib/utils";
+import { timeAgo, daysUntil } from "@/lib/utils";
+import { getToken } from "@/lib/auth";
+import { getBook } from "@/lib/api";
 
 export default function NodeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const bookId = params.bookId as string;
   const nodeId = params.nodeId as string;
+  const { data: session } = useSession();
 
   const [node, setNode] = useState<Record<string, unknown> | null>(null);
   const [userState, setUserState] = useState<Record<string, unknown> | null>(null);
@@ -23,30 +27,41 @@ export default function NodeDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/books/${bookId}`)
-      .then(r => r.json())
+    const token = getToken(session);
+    if (!token) return;
+    let cancelled = false;
+
+    getBook(token, bookId)
       .then(({ book }) => {
-        const n = book?.nodes?.find((x: Record<string, unknown>) => x.id === nodeId);
+        if (cancelled) return;
+        const allNodes = (book?.nodes ?? []) as unknown as Array<Record<string, unknown>>;
+        const n = allNodes.find((x) => x.id === nodeId);
         if (!n) { setLoading(false); return; }
 
         setNode(n);
-        const us = (n.userNodeStates as Array<Record<string, unknown>>)?.[0];
-        setUserState(us ?? null);
+        setUserState((n.userNodeStates as Array<Record<string, unknown>>)?.[0] ?? null);
 
-        // Prereqs: nodes that this node depends on
-        const prereqIds = new Set((n.incomingEdges as Array<{ fromNodeId: string; type: string }>).filter((e) => e.type === "prerequisite").map(e => e.fromNodeId));
-        setPrereqs(book.nodes.filter((x: Record<string, unknown>) => prereqIds.has(x.id as string)));
+        const prereqIds = new Set(
+          (n.incomingEdges as Array<{ fromNodeId: string; type: string }>)
+            .filter((e) => e.type === "prerequisite").map((e) => e.fromNodeId)
+        );
+        setPrereqs(allNodes.filter((x) => prereqIds.has(x.id as string)));
 
-        // Unlocks: nodes this node is a prereq for
-        const unlockIds = new Set((n.outgoingEdges as Array<{ toNodeId: string; type: string }>).filter((e) => e.type === "prerequisite").map(e => e.toNodeId));
-        setUnlocks(book.nodes.filter((x: Record<string, unknown>) => unlockIds.has(x.id as string)));
+        const unlockIds = new Set(
+          (n.outgoingEdges as Array<{ toNodeId: string; type: string }>)
+            .filter((e) => e.type === "prerequisite").map((e) => e.toNodeId)
+        );
+        setUnlocks(allNodes.filter((x) => unlockIds.has(x.id as string)));
 
-        // Past user-asked questions
-        const qs = (n.questions as Array<{ id: string; body: string; source: string }>)?.filter((q) => q.source === "user_asked") ?? [];
+        const qs = (n.questions as Array<{ id: string; body: string; source: string }>)
+          ?.filter((q) => q.source === "user_asked") ?? [];
         setPastQuestions(qs);
         setLoading(false);
-      });
-  }, [bookId, nodeId]);
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [bookId, nodeId, session]);
 
   if (loading) return (
     <div className="flex min-h-screen"><Sidebar />
@@ -66,7 +81,12 @@ export default function NodeDetailPage() {
   const isLocked = state === "locked";
   const isMastered = state === "mastered" || state === "due";
 
-  const sourceChunks = JSON.parse((node.sourceChunks as string) || "[]") as string[];
+  const rawChunks = node.sourceChunks;
+  const sourceChunks: string[] = Array.isArray(rawChunks)
+    ? (rawChunks as string[])
+    : typeof rawChunks === "string"
+    ? (JSON.parse(rawChunks || "[]") as string[])
+    : [];
 
   return (
     <div className="flex min-h-screen">

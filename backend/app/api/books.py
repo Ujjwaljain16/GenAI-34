@@ -5,6 +5,9 @@ from app.api.deps import get_db, get_current_user_id
 from app.repositories.book_repo import BookRepository
 from app.services.book_service import BookService, mock_process_book_job
 from app.schemas.book import UploadResponse, JobStatusDTO, BookDTO, BookCreate, BookStatusDTO, BookDetailDTO, GraphDTO, BookSummaryDTO
+from app.schemas.graph_reveal import PersonalGraphDTO
+from app.repositories.graph_repo import GraphRepository
+from app.services.graph_reveal_service import GraphRevealService
 from app.core.db import AsyncSessionLocal
 
 router = APIRouter(prefix="/books", tags=["Books"])
@@ -74,6 +77,52 @@ async def get_book_graph(
     service = BookService(BookRepository(session))
     return await service.get_book_graph(book_id)
 
+@router.post("/{book_id}/graph/sync-neo4j")
+async def sync_graph_to_neo4j(
+    book_id: str,
+    user_id: str = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_db),
+):
+    """Project this book's graph + the caller's mastery state into Neo4j.
+    Postgres remains the source of truth; this is a best-effort projection."""
+    from app.services.neo4j_projection import project_book_graph, project_user_state
+
+    repo = GraphRepository(session)
+    if not await repo.is_enrolled(user_id, book_id):
+        raise HTTPException(status_code=404, detail="Book not found in your library")
+    gv = await repo.active_graph_version(book_id)
+    if gv is None:
+        raise HTTPException(status_code=409, detail="Knowledge graph not built yet")
+
+    concepts = await repo.concepts(book_id, gv)
+    edges = await repo.prerequisite_edges(book_id, gv)
+    states = await repo.node_states(user_id, book_id)
+    masteries = await repo.masteries(user_id, book_id)
+
+    concept_dicts = [{"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level} for c in concepts]
+    edge_tuples = [(str(e.from_concept_id), str(e.to_concept_id)) for e in edges]
+    mastery_rows = [{"concept_id": cid, "score": score, "state": states.get(cid, "")}
+                    for cid, (score, _lr) in masteries.items()]
+    in_progress = [cid for cid, st in states.items() if st == "IN_PROGRESS"]
+
+    book_ok = await project_book_graph(book_id, concept_dicts, edge_tuples)
+    user_ok = await project_user_state(user_id, mastery_rows, in_progress)
+    return {"bookProjected": book_ok, "userProjected": user_ok,
+            "concepts": len(concept_dicts), "edges": len(edge_tuples)}
+
+
+@router.get("/{book_id}/knowledge-graph", response_model=PersonalGraphDTO)
+async def get_personal_knowledge_graph(
+    book_id: str,
+    user_id: str = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_db),
+):
+    """Personalized graph reveal: nodes + edges overlaid with this user's
+    per-concept state and mastery (four-state coloring for the map view)."""
+    service = GraphRevealService(GraphRepository(session))
+    return await service.get_personal_graph(user_id, book_id)
+
+
 @router.post("/{book_id}/graph/confirm")
 async def confirm_book_graph(
     book_id: str,
@@ -87,15 +136,25 @@ async def confirm_book_graph(
         UPDATE books SET status = 'READY' WHERE id = :bid
     '''), {"bid": book_id})
     
-    # 2. Add UserNodeStates for all nodes
+    # 2. Seed the initial graph reveal: root concepts (no unmet prerequisite)
+    #    start AVAILABLE, everything downstream starts LOCKED. The assessment
+    #    refines these afterwards. (Seeding everything LOCKED would leave the
+    #    graph fully gated with no entry point before assessment.)
     await session.execute(text('''
         INSERT INTO user_concept_state (user_id, concept_id, graph_version, state)
-        SELECT :uid, id, graph_version, 'LOCKED'
-        FROM concepts
-        WHERE book_id = :bid
+        SELECT :uid, c.id, c.graph_version,
+               (CASE WHEN NOT EXISTS (
+                        SELECT 1 FROM concept_edges e
+                        WHERE e.to_concept_id = c.id
+                          AND e.edge_type = 'PREREQUISITE'
+                          AND e.book_id = c.book_id
+                          AND e.graph_version = c.graph_version
+                     ) THEN 'AVAILABLE' ELSE 'LOCKED' END)::node_state
+        FROM concepts c
+        WHERE c.book_id = :bid
         ON CONFLICT (user_id, concept_id, graph_version) DO NOTHING
     '''), {"uid": user_id, "bid": book_id})
-    
+
     await session.commit()
     return {"success": True}
 

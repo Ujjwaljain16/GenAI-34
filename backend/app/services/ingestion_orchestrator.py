@@ -87,6 +87,7 @@ class IngestionOrchestrator:
                         "name": c.name,
                         "summary": c.summary,
                         "difficulty": c.difficulty,
+                        "subtopics": list(getattr(c, "subtopics", []) or []),
                         "source_chunk_id": chunk["db_id"]
                     })
             
@@ -119,29 +120,40 @@ class IngestionOrchestrator:
                     resolved = cluster[0]
                     resolved["canonical_name"] = resolved["name"]
                     resolved["canonical_summary"] = resolved["summary"]
+                    resolved["subtopics"] = list(resolved.get("subtopics", []))
                 else:
                     merged = self.llm_extractor.resolve_merge(cluster)
+                    # Union the candidates' sub-topics (resolve_merge doesn't return them).
+                    merged_subtopics = []
+                    for cand in cluster:
+                        for st in cand.get("subtopics", []):
+                            if st not in merged_subtopics:
+                                merged_subtopics.append(st)
                     resolved = {
                         "canonical_name": merged.canonical_name,
                         "canonical_summary": merged.canonical_summary,
                         "difficulty": merged.difficulty,
+                        "subtopics": merged_subtopics[:5],
                         "source_chunk_id": cluster[0]["source_chunk_id"] # arbitrarily link to first chunk
                     }
-                
+
                 concept_id = str(uuid.uuid4())
                 resolved["id"] = concept_id
-                
+
+                # Store sub-topics in metadata so the course/daily-plan can show them.
+                metadata_json = json.dumps({"subtopics": resolved.get("subtopics", [])})
+
                 # Insert concept — skip if same name already exists for this book+version
                 # (happens when LLM extracts the same concept from multiple chunks)
                 result = await db.execute(text('''
-                    INSERT INTO concepts (id, book_id, name, summary, difficulty_level, graph_version)
-                    VALUES (:id, :book_id, :name, :sum, :diff, :v)
+                    INSERT INTO concepts (id, book_id, name, summary, difficulty_level, graph_version, metadata)
+                    VALUES (:id, :book_id, :name, :sum, :diff, :v, :meta)
                     ON CONFLICT (book_id, name, graph_version) DO NOTHING
                     RETURNING id
                 '''), {
                     "id": concept_id, "book_id": book_id, "name": resolved["canonical_name"],
                     "sum": resolved["canonical_summary"], "diff": resolved["difficulty"],
-                    "v": graph_version_num
+                    "v": graph_version_num, "meta": metadata_json
                 })
                 returned = result.fetchone()
                 if returned:
@@ -174,7 +186,14 @@ class IngestionOrchestrator:
                 
                 rel = self.llm_extractor.extract_relationship(chunk_content, src_c, tgt_c)
                 
-                if rel.relationship_type in ["PREREQUISITE", "RELATED"] and rel.confidence > 0.5:
+                # Prerequisite edges form the DAG (kept at moderate confidence).
+                # RELATED edges are informational only and tend to be over-produced,
+                # so keep just the strongest to avoid a cluttered "hairball" graph.
+                keep_edge = (
+                    (rel.relationship_type == "PREREQUISITE" and rel.confidence > 0.5)
+                    or (rel.relationship_type == "RELATED" and rel.confidence >= 0.85)
+                )
+                if keep_edge:
                     edge_id = str(uuid.uuid4())
                     edge_dict = {
                         "id": edge_id,
@@ -232,6 +251,19 @@ class IngestionOrchestrator:
                 nodes_created = :nodes, edges_created = :edges WHERE id = :job_id
             '''), {"nodes": len(canonical_concepts), "edges": len(edges), "job_id": job_id})
             
+            # Source text now lives in source_chunks; the original upload is no
+            # longer needed. Delete it unless retention is enabled (re-ingestion).
+            from app.core.config import settings
+            if not settings.KEEP_SOURCE_FILE:
+                try:
+                    self.storage_provider.delete(storage_path)
+                    await db.execute(text(
+                        "UPDATE book_uploads SET upload_status = 'STORED' WHERE storage_path = :p"),
+                        {"p": storage_path})
+                    logger.info(f"Deleted processed source file: {storage_path}")
+                except Exception as del_err:  # noqa: BLE001 - cleanup must not fail the job
+                    logger.warning(f"Could not delete source file {storage_path}: {del_err}")
+
             await db.commit()
             logger.info(f"Job {job_id} completed successfully")
             return True

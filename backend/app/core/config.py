@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
 
+    # Storage Config
+    # STORAGE_BACKEND selects the StorageProvider implementation ("local" | "s3"...).
+    STORAGE_BACKEND: str = "local"
+    STORAGE_LOCAL_DIR: str = "uploads"
+    # The extracted text lives in source_chunks, so the original upload is not
+    # needed after a successful build. Delete it by default; flip on only if you
+    # add re-ingestion or user re-download.
+    KEEP_SOURCE_FILE: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env", 
         env_file_encoding="utf-8", 
