@@ -8,4 +8,4 @@ Provide:
 3. **Difficulty**: A single difficulty rating reflecting the consensus of the candidates.
 
 CANDIDATES:
-{candidates_json}
+{{CANDIDATES_JSON}}
