@@ -232,6 +232,19 @@ class IngestionOrchestrator:
                 nodes_created = :nodes, edges_created = :edges WHERE id = :job_id
             '''), {"nodes": len(canonical_concepts), "edges": len(edges), "job_id": job_id})
             
+            # Source text now lives in source_chunks; the original upload is no
+            # longer needed. Delete it unless retention is enabled (re-ingestion).
+            from app.core.config import settings
+            if not settings.KEEP_SOURCE_FILE:
+                try:
+                    self.storage_provider.delete(storage_path)
+                    await db.execute(text(
+                        "UPDATE book_uploads SET upload_status = 'STORED' WHERE storage_path = :p"),
+                        {"p": storage_path})
+                    logger.info(f"Deleted processed source file: {storage_path}")
+                except Exception as del_err:  # noqa: BLE001 - cleanup must not fail the job
+                    logger.warning(f"Could not delete source file {storage_path}: {del_err}")
+
             await db.commit()
             logger.info(f"Job {job_id} completed successfully")
             return True
