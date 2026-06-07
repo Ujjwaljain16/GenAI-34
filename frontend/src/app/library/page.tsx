@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   Bell, Plus, Flame, BookOpen, Clock, ChevronRight,
-  Loader2, AlertTriangle, BrainCircuit, User, SortAsc,
+  Loader2, AlertTriangle, BrainCircuit, User, SortAsc, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { ProgressRing } from "@/components/ProgressRing";
 import { Sidebar } from "@/components/Sidebar";
 import { estimateMinutes } from "@/lib/utils";
 import { getToken } from "@/lib/auth";
-import { listBooks, listNotifications, getMe } from "@/lib/api";
+import { listBooks, listNotifications, getMe, deleteBook } from "@/lib/api";
 import { ApiError } from "@/lib/api-client";
 import type { BookSummaryDTO } from "@/types/dto";
 
@@ -83,6 +83,21 @@ export default function LibraryPage() {
 
   // Most-due book for the "Start today's plan" CTA
   const priorityBook = [...books].sort((a, b) => b.dueToday - a.dueToday)[0];
+
+  const handleDeleteBook = async (e: React.MouseEvent, bookId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this book?")) return;
+    
+    try {
+      const token = getToken(session);
+      await deleteBook(token, bookId);
+      setBooks(books.filter(b => b.id !== bookId));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete book");
+    }
+  };
 
   if (status === "loading" || loading) {
     return (
@@ -257,6 +272,13 @@ export default function LibraryPage() {
                       >
                         {STATUS_BADGE[book.status]?.label ?? book.status}
                       </Badge>
+                      <button
+                        onClick={(e) => handleDeleteBook(e, book.id)}
+                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                        title="Delete book"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
 
                     {book.status === "ready" && (

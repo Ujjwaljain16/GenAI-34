@@ -41,7 +41,7 @@ const STATUS_TO_INDEX: Record<string, number> = {
 };
 
 const POLL_INTERVAL_MS   = 3000;
-const MAX_POLL_ATTEMPTS  = 80; // 4 minutes max
+const MAX_POLL_ATTEMPTS  = 600; // 30 minutes max to accommodate Gemini API rate limits
 
 export default function ProcessingPage() {
   const router              = useRouter();

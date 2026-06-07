@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db, get_current_user_id
 from app.repositories.book_repo import BookRepository
 from app.services.book_service import BookService, mock_process_book_job
-from app.schemas.book import UploadResponse, JobStatusDTO, BookDTO, BookCreate, BookStatusDTO, BookDetailDTO
+from app.schemas.book import UploadResponse, JobStatusDTO, BookDTO, BookCreate, BookStatusDTO, BookDetailDTO, GraphDTO, BookSummaryDTO
 from app.core.db import AsyncSessionLocal
 
 router = APIRouter(prefix="/books", tags=["Books"])
@@ -40,12 +40,9 @@ async def upload_book_file(
     job_status = await service.upload_book_file(book_id, user_id, file)
     await session.commit()
     
-    # We must spawn a background task with a fresh DB session because the request session will close.
-    async def run_job():
-        async with AsyncSessionLocal() as bg_session:
-            await mock_process_book_job(job_status.job_id, book_id, user_id, bg_session)
-
-    background_tasks.add_task(run_job)
+    # We no longer spawn a background task here because the separate ingestion_worker.py
+    # daemon polling the graph_build_jobs table will pick up this QUEUED job.
+    
     return job_status
 
 @router.get("/{book_id}/status", response_model=BookStatusDTO)
@@ -59,33 +56,85 @@ async def get_book_status(
         raise HTTPException(status_code=404, detail="Book processing status not found")
     return status
 
-@router.get("", response_model=List[BookDTO])
-async def get_user_books(
+@router.get("/{book_id}/graph", response_model=GraphDTO)
+async def get_book_graph(
+    book_id: str,
     user_id: str = Depends(get_current_user_id),
-    service: BookService = Depends(get_book_service),
     session: AsyncSession = Depends(get_db)
 ):
+    from sqlalchemy import text
+    
+    # Verify ownership
+    check = await session.execute(text(
+        'SELECT 1 FROM user_books WHERE user_id = :uid AND book_id = :bid'
+    ), {"uid": user_id, "bid": book_id})
+    if not check.fetchone():
+        raise HTTPException(status_code=404, detail="Book not found in your library")
+    
+    service = BookService(BookRepository(session))
+    return await service.get_book_graph(book_id)
+
+@router.post("/{book_id}/graph/confirm")
+async def confirm_book_graph(
+    book_id: str,
+    user_id: str = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import text
+    
+    # 1. Update book status to READY
+    await session.execute(text('''
+        UPDATE books SET status = 'READY' WHERE id = :bid
+    '''), {"bid": book_id})
+    
+    # 2. Add UserNodeStates for all nodes
+    await session.execute(text('''
+        INSERT INTO user_concept_state (user_id, concept_id, graph_version, state)
+        SELECT :uid, id, graph_version, 'LOCKED'
+        FROM concepts
+        WHERE book_id = :bid
+        ON CONFLICT (user_id, concept_id, graph_version) DO NOTHING
+    '''), {"uid": user_id, "bid": book_id})
+    
+    await session.commit()
+    return {"success": True}
+
+@router.get("", response_model=dict)
+async def get_user_books(
+    user_id: str = Depends(get_current_user_id),
+    session: AsyncSession = Depends(get_db)
+):
+    service = BookService(BookRepository(session))
     books = await service.book_repo.get_books_by_user(user_id)
-    return [
-        BookDTO(
+    summaries = []
+    for b in books:
+        status_str = getattr(b, 'status', 'UPLOADING').lower()
+        if status_str == 'uploading':
+            status_str = 'uploaded'
+            
+        summaries.append(BookSummaryDTO(
             id=str(b.id),
             title=b.title,
             author=b.author,
-            description=b.description,
-            source_type=b.source_type,
-            file_url=b.file_url,
-            created_at=b.created_at
-        )
-        for b in books
-    ]
+            coverUrl=None,
+            status=status_str,
+            progress=0,
+            totalNodes=0,
+            masteredNodes=0,
+            dueToday=0,
+            lastStudied=None,
+            createdAt=b.created_at.isoformat()
+        ).model_dump(by_alias=True))
+        
+    return {"books": summaries}
 
-@router.get("/{book_id}", response_model=BookDetailDTO)
+@router.get("/{book_id}", response_model=dict)
 async def get_book(
     book_id: str,
     user_id: str = Depends(get_current_user_id),
-    service: BookService = Depends(get_book_service),
     session: AsyncSession = Depends(get_db)
 ):
+    service = BookService(BookRepository(session))
     # Ownership check
     user_book = await service.book_repo.get_user_book(user_id, book_id)
     if not user_book:
@@ -95,36 +144,70 @@ async def get_book(
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
         
-    return BookDetailDTO(
-        id=str(book.id),
-        title=book.title,
-        author=book.author,
-        description=book.description,
-        source_type=book.source_type,
-        file_url=book.file_url,
-        created_at=book.created_at,
-        nodes=[]
-    )
+    from sqlalchemy import text
+    states = await session.execute(text('''
+        SELECT ucs.concept_id, ucs.state 
+        FROM user_concept_state ucs
+        JOIN concepts c ON c.id = ucs.concept_id
+        WHERE ucs.user_id = :uid AND c.book_id = :bid
+    '''), {"uid": user_id, "bid": book_id})
+    
+    nodes = []
+    for r in states:
+        nodes.append({
+            "id": str(r.concept_id),
+            "userNodeStates": [{
+                "nodeId": str(r.concept_id),
+                "state": r.state
+            }]
+        })
+        
+    return {
+        "book": BookDetailDTO(
+            id=str(book.id),
+            title=book.title,
+            author=book.author,
+            description=book.description,
+            source_type=book.source_type,
+            file_url=book.file_url,
+            created_at=book.created_at,
+            nodes=nodes
+        ).model_dump()
+    }
 
 @router.delete("/{book_id}", status_code=204)
 async def delete_book(
     book_id: str,
     user_id: str = Depends(get_current_user_id),
-    service: BookService = Depends(get_book_service),
     session: AsyncSession = Depends(get_db)
 ):
-    user_book = await service.book_repo.get_user_book(user_id, book_id)
-    if not user_book:
-        raise HTTPException(status_code=404, detail="Book not found in your library")
-        
-    book = await service.book_repo.get_book_by_id(book_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
-        
-    await service.book_repo.delete_user_book(user_book)
+    from sqlalchemy import text
     
-    if str(book.owner_id) == user_id:
-        await service.book_repo.delete_book(book)
-        
+    # Verify ownership via user_books
+    result = await session.execute(text('''
+        SELECT ub.id, b.owner_id
+        FROM user_books ub
+        JOIN books b ON b.id = ub.book_id
+        WHERE ub.user_id = :uid AND ub.book_id = :bid
+    '''), {"uid": user_id, "bid": book_id})
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Book not found in your library")
+    
+    user_book_id, owner_id = row
+    
+    # Remove from user's library
+    await session.execute(
+        text('DELETE FROM user_books WHERE id = :id'),
+        {"id": str(user_book_id)}
+    )
+    
+    # If this user owns the book, delete it entirely (cascades to all children)
+    if str(owner_id) == user_id:
+        await session.execute(
+            text('DELETE FROM books WHERE id = :id'),
+            {"id": book_id}
+        )
+    
     await session.commit()
     return None

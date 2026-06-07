@@ -36,22 +36,43 @@ class BookService:
         )
 
     async def upload_book_file(self, book_id: str, user_id: str, file: UploadFile) -> JobStatusDTO:
-        # Mock saving file
-        file_url = f"s3://lexis-books/mock/{file.filename}"
+        from app.services.storage import LocalStorageProvider
+        from sqlalchemy import text
+        import uuid
         
-        # We would update the book with the file_url here
-        # but for the mock we just need to trigger the job
+        storage_provider = LocalStorageProvider()
         
-        job = GraphBuildJob(
-            book_id=book_id,
-            graph_version=1,
-            status="QUEUED"
-        )
-        job = await self.book_repo.create_job(job)
+        # 1. Save the file locally
+        storage_path = await storage_provider.save(file, user_id)
+        
+        # Calculate file size since we aren't reading it into memory here
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+        file.file.seek(0)
+        
+        # 2. Insert into book_uploads
+        upload_id = str(uuid.uuid4())
+        await self.book_repo.session.execute(text('''
+            INSERT INTO book_uploads (id, book_id, user_id, original_filename, storage_path, file_size_bytes, mime_type, upload_status)
+            VALUES (:id, :bid, :uid, :fname, :path, :size, :mime, 'PENDING')
+        '''), {
+            "id": upload_id, "bid": book_id, "uid": user_id,
+            "fname": file.filename, "path": storage_path,
+            "size": file_size, "mime": file.content_type
+        })
+        
+        # 3. Insert into graph_build_jobs
+        job_id = str(uuid.uuid4())
+        await self.book_repo.session.execute(text('''
+            INSERT INTO graph_build_jobs (id, book_id, graph_version, status, book_upload_id)
+            VALUES (:id, :bid, 1, 'QUEUED', :upload_id)
+        '''), {
+            "id": job_id, "bid": book_id, "upload_id": upload_id
+        })
         
         return JobStatusDTO(
-            job_id=str(job.id),
-            status=job.status,
+            job_id=job_id,
+            status="QUEUED",
             nodes_created=None,
             edges_created=None,
             error_message=None
@@ -98,6 +119,49 @@ class BookService:
             estimated_seconds_remaining=30 if status == "parsing" else None,
             error=job.error_message
         )
+
+    async def get_book_graph(self, book_id: str):
+        from sqlalchemy import text
+        from app.schemas.book import GraphDTO, KGNodeDTO, KGEdgeDTO
+        
+        concept_rows = await self.book_repo.session.execute(text('''
+            SELECT id, name as title, summary, difficulty_level, created_at
+            FROM concepts
+            WHERE book_id = :bid
+        '''), {"bid": book_id})
+        
+        nodes = []
+        for r in concept_rows:
+            nodes.append(KGNodeDTO(
+                id=str(r.id),
+                bookId=book_id,
+                title=r.title,
+                summary=r.summary,
+                sourceChunks=[],
+                difficultyTier=r.difficulty_level,
+                orderIndex=0,
+                sectionName=None,
+                createdAt=r.created_at.isoformat()
+            ))
+            
+        edge_rows = await self.book_repo.session.execute(text('''
+            SELECT id, from_concept_id, to_concept_id, edge_type, weight, confidence
+            FROM concept_edges
+            WHERE book_id = :bid
+        '''), {"bid": book_id})
+        
+        edges = []
+        for r in edge_rows:
+            edges.append(KGEdgeDTO(
+                id=str(r.id),
+                fromNodeId=str(r.from_concept_id),
+                toNodeId=str(r.to_concept_id),
+                type=r.edge_type,
+                weight=float(r.weight),
+                confidence=float(r.confidence)
+            ))
+            
+        return GraphDTO(nodes=nodes, edges=edges)
 
 async def mock_process_book_job(job_id: str, book_id: str, user_id: str, session):
     """
