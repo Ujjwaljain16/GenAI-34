@@ -2145,3 +2145,82 @@ CREATE TABLE notifications (
 CREATE INDEX idx_notifications_user ON notifications(user_id);
 CREATE INDEX idx_notifications_unread ON notifications(user_id) WHERE is_read = FALSE;
 
+
+
+-- =====================================================
+-- 11. INGESTION PIPELINE EXTENSIONS
+-- =====================================================
+
+CREATE TYPE upload_status AS ENUM (
+    \'PENDING\',
+    \'STORED\',
+    \'FAILED\'
+);
+
+CREATE TABLE book_uploads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    book_id UUID REFERENCES books(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    original_filename TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    file_size_bytes BIGINT,
+    mime_type TEXT,
+    upload_status upload_status NOT NULL DEFAULT \'PENDING\',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_book_uploads_book ON book_uploads(book_id);
+CREATE INDEX idx_book_uploads_user ON book_uploads(user_id);
+
+ALTER TABLE source_chunks ADD COLUMN book_upload_id UUID REFERENCES book_uploads(id) ON DELETE CASCADE;
+ALTER TABLE graph_build_jobs ADD COLUMN book_upload_id UUID REFERENCES book_uploads(id) ON DELETE CASCADE;
+
+CREATE TABLE graph_validation_results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    graph_version_id UUID REFERENCES graph_versions(id) ON DELETE CASCADE,
+    rule_code TEXT NOT NULL,
+    passed BOOLEAN NOT NULL,
+    severity TEXT NOT NULL,
+    detail JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_graph_validation_results_version ON graph_validation_results(graph_version_id);
+
+CREATE TABLE graph_repair_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    graph_version_id UUID REFERENCES graph_versions(id) ON DELETE CASCADE,
+    operation TEXT NOT NULL,
+    artifact_id UUID,
+    reason TEXT NOT NULL,
+    before_value JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_graph_repair_log_version ON graph_repair_log(graph_version_id);
+
+CREATE TABLE graph_version_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    graph_version_id UUID REFERENCES graph_versions(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    notes TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_graph_version_events_version ON graph_version_events(graph_version_id);
+
+CREATE TABLE graph_audit_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    graph_version_id UUID REFERENCES graph_versions(id) ON DELETE CASCADE,
+    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id UUID,
+    before_value JSONB,
+    after_value JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_graph_audit_events_version ON graph_audit_events(graph_version_id);

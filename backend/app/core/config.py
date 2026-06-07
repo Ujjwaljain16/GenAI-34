@@ -30,8 +30,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
 
-    # Gemini
-    GEMINI_API_KEY: str = ""
+    # Gemini Config
+    GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-2.5-flash-lite"
 
     model_config = SettingsConfigDict(
         env_file=".env", 

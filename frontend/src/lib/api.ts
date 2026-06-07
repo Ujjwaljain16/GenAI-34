@@ -118,6 +118,13 @@ export async function updateBook(
   return apiPatch<{ book: BookDetailDTO }>(`/books/${bookId}`, data, { token });
 }
 
+export async function deleteBook(
+  token: string,
+  bookId: string
+): Promise<void> {
+  return apiDelete<void>(`/books/${bookId}`, { token });
+}
+
 /**
  * Upload the book file for processing (PDF / EPUB / TXT).
  * Backend parses, extracts concepts, infers edges — all async.

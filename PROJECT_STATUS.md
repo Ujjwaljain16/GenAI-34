@@ -25,18 +25,22 @@ This document maintains the current state of the Lexis Adaptive Book Learning Pl
   - Added full Profile Management logic (`GET /api/v1/users/me` and `PATCH /api/v1/users/me`) mirroring the frontend `UserDTO`.
   - Restructured DB layout to merge standard profile settings directly into the `users` table instead of an arbitrary relation.
   - Implemented `GET /api/v1/books/{id}` and `DELETE /api/v1/books/{id}` with strict library ownership validation.
+- **PDF Upload & Knowledge Graph Pipeline (Real LLM Extraction)**:
+  - Background ingestion worker correctly claims jobs.
+  - PyMuPDF text extraction with intelligent chunking.
+  - Real Gemini (via `google-genai`) integration for extracting Concept nodes and Prerequisite edges.
+  - Idempotent database insertion with advanced conflict handling (`ON CONFLICT DO NOTHING`) across `source_chunks`, `concepts`, and `concept_edges`.
+  - Frontend properly polls and displays the real generated Knowledge Graph (D3.js).
 
 ## 🎭 Mocked (Working UI, Simulated Backend)
-- **PDF Upload & Knowledge Graph Pipeline**: 
-  - *Reality*: No real PDF text extraction, chunking, or LLM calls are happening yet.
 - **Notifications**:
   - `GET /api/v1/notifications` exists but returns a static `[]` to allow the React `Promise.all` on the Library page to succeed without crashing.
 
 ## 🚧 Incomplete / In Progress
-- **Neo4j Integration**: 
-  - Basic connector exists (`app/core/neo4j.py`), but the actual Knowledge Graph querying and writing is pending implementation by the other developer.
-  - **File Storage**:
-  - Uploaded PDFs are currently received by FastAPI but discarded in memory. They need to be stored locally or pushed to an S3-compatible storage bucket.
+- **Neo4j Integration** (Optional / Future): 
+  - Basic connector exists (`app/core/neo4j.py`). Currently, graph storage successfully uses PostgreSQL (`concepts` and `concept_edges`).
+- **File Storage**:
+  - Uploaded PDFs are stored in the local file system (`uploads/`). Needs migration to S3-compatible storage bucket for production.
 
 ## 📝 Untouched / Needs to be Done (Roadmap)
 - **Assessment Engine (PR 4)**:

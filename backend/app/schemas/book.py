@@ -41,3 +41,42 @@ class BookStatusDTO(BaseModel):
     total_steps: int = Field(alias="totalSteps", default=4)
     estimated_seconds_remaining: Optional[int] = Field(alias="estimatedSecondsRemaining", default=None)
     error: Optional[str] = None
+
+class KGNodeDTO(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    id: str
+    bookId: str = Field(alias="bookId")
+    title: str
+    summary: str
+    sourceChunks: List[str] = Field(alias="sourceChunks")
+    difficultyTier: int = Field(alias="difficultyTier")
+    orderIndex: int = Field(alias="orderIndex")
+    sectionName: Optional[str] = Field(alias="sectionName", default=None)
+    createdAt: str = Field(alias="createdAt")
+
+class KGEdgeDTO(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    id: str
+    fromNodeId: str = Field(alias="fromNodeId")
+    toNodeId: str = Field(alias="toNodeId")
+    type: str
+    weight: float = 1.0
+    confidence: float = 0.5
+
+class GraphDTO(BaseModel):
+    nodes: List[KGNodeDTO]
+    edges: List[KGEdgeDTO]
+
+class BookSummaryDTO(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    id: str
+    title: str
+    author: Optional[str] = None
+    coverUrl: Optional[str] = Field(alias="coverUrl", default=None)
+    status: str
+    progress: int = 0
+    totalNodes: int = Field(alias="totalNodes", default=0)
+    masteredNodes: int = Field(alias="masteredNodes", default=0)
+    dueToday: int = Field(alias="dueToday", default=0)
+    lastStudied: Optional[str] = Field(alias="lastStudied", default=None)
+    createdAt: str = Field(alias="createdAt")
