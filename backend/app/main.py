@@ -4,6 +4,17 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.api import (
+    auth,
+    users,
+    books,
+    notifications,
+    assessments,
+    curriculum,
+    lessons,
+    revision,
+    dashboard,
+)
 
 app = FastAPI(
     title="Lexis AI API",
@@ -18,18 +29,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-from app.api import (
-    auth,
-    users,
-    books,
-    notifications,
-    assessments,
-    curriculum,
-    lessons,
-    revision,
-    dashboard,
 )
 
 

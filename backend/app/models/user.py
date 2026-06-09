@@ -16,6 +16,7 @@ from sqlalchemy import (
     func,
     Date,
     Text,
+    Numeric,
 )
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from app.models.base import Base
@@ -61,10 +62,6 @@ class User(Base):
     notify_processing = Column(Boolean, nullable=False, default=True)
     global_streak = Column(Integer, nullable=False, default=0)
     last_active_date = Column(Date, nullable=True)
-
-
-from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy import Numeric, Boolean, Date
 
 
 class ContentCompletion(Base):
