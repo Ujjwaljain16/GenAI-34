@@ -43,13 +43,13 @@ class SubmitResponseRequest(BaseModel):
 
 class ResponseResultDTO(BaseModel):
     is_correct: bool
-    correctness: str            # correct | partial | incorrect
-    score: float                # 0.0 - 1.0
+    correctness: str  # correct | partial | incorrect
+    score: float  # 0.0 - 1.0
     feedback: str = ""
     explanation: str = ""
     # Revealed only AFTER the learner answers, so they can compare.
     correct_answer: str = ""
-    correct_option: Optional[int] = None   # MCQ: 0-based index of the correct option
+    correct_option: Optional[int] = None  # MCQ: 0-based index of the correct option
     # True when failing the easy (MCQ) tier stops descent into dependents.
     branch_stopped: bool = False
 

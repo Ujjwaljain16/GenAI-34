@@ -9,6 +9,7 @@ Pure: no I/O. Stability drives the review interval (days until ~90% recall);
 successful reviews grow it, lapses reset it. Retrievability is the forgetting
 curve used to sort revision urgency.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -57,7 +58,7 @@ def review(state: FsrsState, grade: int) -> tuple[FsrsState, int]:
 
     reps, lapses = state.repetitions, state.lapses
     if grade == GRADE_AGAIN:
-        new_s = DEFAULT_STABILITY      # lapse: reset stability
+        new_s = DEFAULT_STABILITY  # lapse: reset stability
         lapses += 1
         reps = 0
     else:
@@ -70,7 +71,7 @@ def review(state: FsrsState, grade: int) -> tuple[FsrsState, int]:
     new_state = FsrsState(
         stability=round(new_s, 4),
         difficulty=round(new_d, 4),
-        retrievability=1.0,   # just reviewed
+        retrievability=1.0,  # just reviewed
         repetitions=reps,
         lapses=lapses,
     )

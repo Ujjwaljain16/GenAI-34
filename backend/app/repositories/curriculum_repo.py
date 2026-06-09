@@ -58,17 +58,24 @@ class CurriculumRepository:
         )
         return row.scalars().first()
 
-    async def save_today_plan(self, user_id: str, book_id: str, learn_concept_ids: list) -> None:
+    async def save_today_plan(
+        self, user_id: str, book_id: str, learn_concept_ids: list
+    ) -> None:
         existing = await self.get_today_plan(user_id, book_id)
         if existing is not None:
             from sqlalchemy.orm.attributes import flag_modified
+
             existing.learn_concept_ids = learn_concept_ids
             flag_modified(existing, "learn_concept_ids")
         else:
-            self.session.add(DailyPlan(
-                user_id=user_id, book_id=book_id,
-                plan_date=date.today(), learn_concept_ids=learn_concept_ids,
-            ))
+            self.session.add(
+                DailyPlan(
+                    user_id=user_id,
+                    book_id=book_id,
+                    plan_date=date.today(),
+                    learn_concept_ids=learn_concept_ids,
+                )
+            )
         await self.session.flush()
 
     async def daily_new_node_cap(self, user_id: str) -> int:

@@ -11,6 +11,7 @@ the system design and the atomic /complete workflow from AGENT.md:
 The caller (API layer) owns the DB transaction boundary: it commits on success
 and rolls back on any exception, giving /complete its all-or-nothing guarantee.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,9 +26,15 @@ from app.repositories.assessment_repo import AssessmentRepository
 from app.services.assessment_llm import AssessmentLLM, PROMPT_VERSION
 from app.services import assessment_walk as walk
 from app.schemas.assessment import (
-    QuestionDTO, ProgressDTO, StartAssessmentResponse,
-    SubmitResponseRequest, SubmitResponseResponse, ResponseResultDTO,
-    AssessmentResultDTO, AssessmentSummaryDTO, OutcomeDTO,
+    QuestionDTO,
+    ProgressDTO,
+    StartAssessmentResponse,
+    SubmitResponseRequest,
+    SubmitResponseResponse,
+    ResponseResultDTO,
+    AssessmentResultDTO,
+    AssessmentSummaryDTO,
+    OutcomeDTO,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +59,9 @@ class AssessmentService:
             return str(meta["bloom_target"])
         return walk.TIER_BLOOM[tier]
 
-    async def _generate_and_store_question(self, concept, tier: str) -> GeneratedQuestion:
+    async def _generate_and_store_question(
+        self, concept, tier: str
+    ) -> GeneratedQuestion:
         qtype = tier  # tiers map 1:1 onto question_type enum values
         difficulty = walk.TIER_DIFFICULTY[tier]
         bloom = self._bloom_for(concept, tier)
@@ -110,10 +119,14 @@ class AssessmentService:
     async def _load_graph(self, book_id: str):
         gv = await self.repo.get_active_graph_version(book_id)
         if gv is None:
-            raise HTTPException(status_code=409, detail="Knowledge graph not built for this book yet.")
+            raise HTTPException(
+                status_code=409, detail="Knowledge graph not built for this book yet."
+            )
         concepts = await self.repo.get_concepts(book_id, gv)
         if not concepts:
-            raise HTTPException(status_code=409, detail="No concepts found for this book's graph.")
+            raise HTTPException(
+                status_code=409, detail="No concepts found for this book's graph."
+            )
         edges = await self.repo.get_prerequisite_edges(book_id, gv)
         edge_tuples = [(str(e.from_concept_id), str(e.to_concept_id)) for e in edges]
         return gv, concepts, edge_tuples
@@ -134,19 +147,24 @@ class AssessmentService:
         failed = walk.failed_mcq(grouped)
         if not failed:
             return set()
-            
+
         from app.repositories.neo4j_repo import Neo4jRepository
+
         neo4j_repo = Neo4jRepository()
         descendants = await neo4j_repo.get_descendants(book_id, list(failed))
-        
+
         blocked = set(descendants)
         return blocked
 
     # ---- public API ---------------------------------------------------------
 
-    async def start_assessment(self, user_id: str, book_id: str) -> StartAssessmentResponse:
+    async def start_assessment(
+        self, user_id: str, book_id: str
+    ) -> StartAssessmentResponse:
         if not await self.repo.is_enrolled(user_id, book_id):
-            raise HTTPException(status_code=404, detail="Book not found in your library.")
+            raise HTTPException(
+                status_code=404, detail="Book not found in your library."
+            )
 
         _gv, concepts, edges = await self._load_graph(book_id)
         concept_ids = [str(c.id) for c in concepts]
@@ -196,13 +214,16 @@ class AssessmentService:
             completed=False,
         )
 
-    async def submit_response(self, user_id: str, assessment_id: str,
-                              req: SubmitResponseRequest) -> SubmitResponseResponse:
+    async def submit_response(
+        self, user_id: str, assessment_id: str, req: SubmitResponseRequest
+    ) -> SubmitResponseResponse:
         assessment = await self.repo.get_assessment(assessment_id)
         if not assessment or str(assessment.user_id) != user_id:
             raise HTTPException(status_code=404, detail="Assessment not found.")
         if assessment.status != "IN_PROGRESS":
-            raise HTTPException(status_code=409, detail="Assessment is not in progress.")
+            raise HTTPException(
+                status_code=409, detail="Assessment is not in progress."
+            )
 
         question = await self.repo.get_question(req.question_id)
         if not question:
@@ -212,29 +233,37 @@ class AssessmentService:
         # tier count (and therefore placement), so reject duplicates.
         existing = await self.repo.get_responses(assessment_id)
         if any(str(r.question_id) == req.question_id for r in existing):
-            raise HTTPException(status_code=409, detail="This question has already been answered.")
+            raise HTTPException(
+                status_code=409, detail="This question has already been answered."
+            )
 
         _gv, concepts, edges = await self._load_graph(str(assessment.book_id))
         by_id = {str(c.id): c for c in concepts}
         concept = by_id.get(str(question.concept_id))
         if concept is None:
-            raise HTTPException(status_code=409, detail="Question does not belong to this book's graph.")
+            raise HTTPException(
+                status_code=409, detail="Question does not belong to this book's graph."
+            )
 
         # --- grade ----------------------------------------------------------
         ak = question.answer_key or {}
-        is_correct, correctness, score, feedback = await self._grade(question, concept, req.answer, ak)
+        is_correct, correctness, score, feedback = await self._grade(
+            question, concept, req.answer, ak
+        )
 
-        await self.repo.create_response(AssessmentResponse(
-            assessment_id=assessment.id,
-            concept_id=concept.id,
-            question_id=question.id,
-            confidence_level=req.confidence_level,
-            response={"answer": req.answer},
-            is_correct=is_correct,
-            response_time_seconds=req.response_time_seconds,
-        ))
+        await self.repo.create_response(
+            AssessmentResponse(
+                assessment_id=assessment.id,
+                concept_id=concept.id,
+                question_id=question.id,
+                confidence_level=req.confidence_level,
+                response={"answer": req.answer},
+                is_correct=is_correct,
+                response_time_seconds=req.response_time_seconds,
+            )
+        )
 
-        branch_stopped = (question.question_type == "MCQ" and not is_correct)
+        branch_stopped = question.question_type == "MCQ" and not is_correct
 
         # --- compute next ----------------------------------------------------
         db_responses = await self.repo.get_responses(assessment_id)
@@ -246,7 +275,9 @@ class AssessmentService:
                 if q:
                     qtype_by_id[qid] = q.question_type
         walk_responses = self._to_walk_responses(db_responses, qtype_by_id)
-        blocked = await self._get_blocked_concepts(str(assessment.book_id), walk_responses)
+        blocked = await self._get_blocked_concepts(
+            str(assessment.book_id), walk_responses
+        )
 
         concept_ids = [str(c.id) for c in concepts]
         nxt = walk.next_question(concept_ids, edges, walk_responses, blocked)
@@ -259,14 +290,17 @@ class AssessmentService:
             feedback=feedback,
             explanation=question.explanation or "",
             correct_answer=str(ak.get("expected_answer", "")),
-            correct_option=mcq_option if (question.question_type == "MCQ" and isinstance(mcq_option, int)) else None,
+            correct_option=mcq_option
+            if (question.question_type == "MCQ" and isinstance(mcq_option, int))
+            else None,
             branch_stopped=branch_stopped,
         )
         progress = self._progress(len(concept_ids), db_responses)
 
         if nxt is None:
-            return SubmitResponseResponse(result=result, next_question=None,
-                                          progress=progress, completed=True)
+            return SubmitResponseResponse(
+                result=result, next_question=None, progress=progress, completed=True
+            )
 
         next_concept = by_id[nxt.concept_id]
         next_q = await self._generate_and_store_question(next_concept, nxt.tier)
@@ -285,7 +319,7 @@ class AssessmentService:
                 chosen = int(str(answer).strip())
             except (TypeError, ValueError):
                 chosen = -1
-            is_correct = (correct_idx is not None and chosen == int(correct_idx))
+            is_correct = correct_idx is not None and chosen == int(correct_idx)
             return (
                 is_correct,
                 "correct" if is_correct else "incorrect",
@@ -313,14 +347,18 @@ class AssessmentService:
                 "",
             )
 
-    async def complete_assessment(self, user_id: str, assessment_id: str) -> AssessmentResultDTO:
+    async def complete_assessment(
+        self, user_id: str, assessment_id: str
+    ) -> AssessmentResultDTO:
         assessment = await self.repo.get_assessment(assessment_id)
         if not assessment or str(assessment.user_id) != user_id:
             raise HTTPException(status_code=404, detail="Assessment not found.")
         if assessment.status == "COMPLETED":
             return await self.get_results(user_id, assessment_id)
         if assessment.status != "IN_PROGRESS":
-            raise HTTPException(status_code=409, detail="Assessment cannot be completed.")
+            raise HTTPException(
+                status_code=409, detail="Assessment cannot be completed."
+            )
 
         gv, concepts, edges = await self._load_graph(str(assessment.book_id))
         by_id = {str(c.id): c for c in concepts}
@@ -334,45 +372,64 @@ class AssessmentService:
                 q = await self.repo.get_question(qid)
                 qtype_by_id[qid] = q.question_type if q else "MCQ"
         walk_responses = self._to_walk_responses(db_responses, qtype_by_id)
-        blocked = await self._get_blocked_concepts(str(assessment.book_id), walk_responses)
+        blocked = await self._get_blocked_concepts(
+            str(assessment.book_id), walk_responses
+        )
 
         outcomes = walk.compute_outcomes(concept_ids, edges, walk_responses, blocked)
 
         # 1-2. Seed assessment_outcomes + concept_mastery + user_concept_state.
         for o in outcomes:
             await self.repo.upsert_outcome(
-                str(assessment.id), o.concept_id, o.mastery_estimate, o.placement_state)
+                str(assessment.id), o.concept_id, o.mastery_estimate, o.placement_state
+            )
             await self.repo.upsert_concept_mastery(
-                user_id, o.concept_id, o.mastery_estimate, o.mastery_state)
-            await self.repo.upsert_node_state(
-                user_id, o.concept_id, gv, o.node_state)
+                user_id, o.concept_id, o.mastery_estimate, o.mastery_state
+            )
+            await self.repo.upsert_node_state(user_id, o.concept_id, gv, o.node_state)
 
         # 3. Best-effort Neo4j projection (Postgres is source of truth; a Neo4j
         #    outage must not break completion — eventually consistent per AGENT.md).
         try:
-            from app.services.neo4j_projection import project_book_graph, project_user_state
-            concept_dicts = [{"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level}
-                             for c in concepts]
+            from app.services.neo4j_projection import (
+                project_book_graph,
+                project_user_state,
+            )
+
+            concept_dicts = [
+                {"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level}
+                for c in concepts
+            ]
             await project_book_graph(str(assessment.book_id), concept_dicts, edges)
             await project_user_state(
                 user_id,
-                [{"concept_id": o.concept_id, "score": o.mastery_estimate, "state": o.placement_state}
-                 for o in outcomes],
+                [
+                    {
+                        "concept_id": o.concept_id,
+                        "score": o.mastery_estimate,
+                        "state": o.placement_state,
+                    }
+                    for o in outcomes
+                ],
                 [],
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("Neo4j projection skipped at assessment complete: %s", e)
 
         # 4-5. Generate + store Learning DNA (deterministic fallback on failure).
-        dna_data = await self._build_dna(user_id, assessment, by_id, outcomes, db_responses)
+        dna_data = await self._build_dna(
+            user_id, assessment, by_id, outcomes, db_responses
+        )
         next_version = await self.repo.next_dna_version(user_id)
         await self.repo.deactivate_active_dna(user_id)
-        await self.repo.create_dna(LearningDNA(
-            user_id=user_id,
-            dna_version=next_version,
-            dna_data=dna_data,
-            is_active=True,
-        ))
+        await self.repo.create_dna(
+            LearningDNA(
+                user_id=user_id,
+                dna_version=next_version,
+                dna_data=dna_data,
+                is_active=True,
+            )
+        )
 
         # Finalize the assessment record.
         total = len(db_responses)
@@ -386,17 +443,22 @@ class AssessmentService:
 
         return self._result_dto(assessment, by_id, outcomes, dna_data)
 
-    async def _build_dna(self, user_id, assessment, by_id, outcomes, db_responses) -> dict:
+    async def _build_dna(
+        self, user_id, assessment, by_id, outcomes, db_responses
+    ) -> dict:
         results = [
             {
-                "concept": by_id[o.concept_id].name if o.concept_id in by_id else o.concept_id,
+                "concept": by_id[o.concept_id].name
+                if o.concept_id in by_id
+                else o.concept_id,
                 "mastery_estimate": o.mastery_estimate,
                 "placement_state": o.placement_state,
             }
             for o in outcomes
         ]
         confident_wrong = sum(
-            1 for r in db_responses
+            1
+            for r in db_responses
             if (r.confidence_level or 0) >= 4 and not r.is_correct
         )
         confidence_summary = (
@@ -421,9 +483,13 @@ class AssessmentService:
         for o in outcomes:
             name = by_id[o.concept_id].name if o.concept_id in by_id else o.concept_id
             if o.mastery_estimate >= 0.85:
-                strengths.append({"area": name, "evidence": f"mastery {o.mastery_estimate:.2f}"})
+                strengths.append(
+                    {"area": name, "evidence": f"mastery {o.mastery_estimate:.2f}"}
+                )
             elif o.mastery_estimate < 0.45:
-                weaknesses.append({"area": name, "evidence": f"mastery {o.mastery_estimate:.2f}"})
+                weaknesses.append(
+                    {"area": name, "evidence": f"mastery {o.mastery_estimate:.2f}"}
+                )
         return {
             "schema_version": "1.0.0",
             "prompt_version": PROMPT_VERSION,
@@ -432,7 +498,8 @@ class AssessmentService:
             "weaknesses": weaknesses,
             "misconceptions": [],
             "recommended_focus_areas": [
-                {"area": w["area"], "reason": "low placement mastery"} for w in weaknesses[:5]
+                {"area": w["area"], "reason": "low placement mastery"}
+                for w in weaknesses[:5]
             ],
             "confidence_profile": confidence_summary,
             "learning_path_explanation": (
@@ -442,7 +509,9 @@ class AssessmentService:
             "fallback": True,
         }
 
-    async def get_results(self, user_id: str, assessment_id: str) -> AssessmentResultDTO:
+    async def get_results(
+        self, user_id: str, assessment_id: str
+    ) -> AssessmentResultDTO:
         assessment = await self.repo.get_assessment(assessment_id)
         if not assessment or str(assessment.user_id) != user_id:
             raise HTTPException(status_code=404, detail="Assessment not found.")
@@ -453,10 +522,13 @@ class AssessmentService:
         db_outcomes = await self.repo.get_outcomes(assessment_id)
         outcomes = [
             walk.ConceptOutcome(
-                concept_id=str(o.concept_id), tested=True, tiers_passed=0,
+                concept_id=str(o.concept_id),
+                tested=True,
+                tiers_passed=0,
                 mastery_estimate=float(o.mastery_estimate),
                 placement_state=o.placement_state,
-                mastery_state="", node_state="",
+                mastery_state="",
+                node_state="",
             )
             for o in db_outcomes
         ]
@@ -482,13 +554,21 @@ class AssessmentService:
                 summary.unknown += 1
             if getattr(o, "node_state", "") == "LOCKED":
                 summary.locked += 1
-            out_dtos.append(OutcomeDTO(
-                concept_id=o.concept_id,
-                concept_name=by_id[o.concept_id].name if o.concept_id in by_id else o.concept_id,
-                mastery_estimate=float(o.mastery_estimate),
-                placement_state=ps,
-            ))
-        score = float(assessment.score_percentage) if assessment.score_percentage is not None else None
+            out_dtos.append(
+                OutcomeDTO(
+                    concept_id=o.concept_id,
+                    concept_name=by_id[o.concept_id].name
+                    if o.concept_id in by_id
+                    else o.concept_id,
+                    mastery_estimate=float(o.mastery_estimate),
+                    placement_state=ps,
+                )
+            )
+        score = (
+            float(assessment.score_percentage)
+            if assessment.score_percentage is not None
+            else None
+        )
         return AssessmentResultDTO(
             assessment_id=str(assessment.id),
             status=assessment.status,

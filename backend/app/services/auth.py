@@ -4,6 +4,7 @@ from app.repositories.user_repo import UserRepository
 from app.models.user import User
 from app.core.security import get_password_hash, verify_password, create_access_token
 
+
 class AuthService:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
@@ -12,8 +13,7 @@ class AuthService:
         existing = await self.user_repo.get_by_email(data.email)
         if existing:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered"
+                status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
             )
 
         hashed = get_password_hash(data.password)
@@ -22,33 +22,30 @@ class AuthService:
             email=data.email,
             password_hash=hashed,
             role="STUDENT",
-            is_active=True
+            is_active=True,
         )
-        
+
         user = await self.user_repo.create_user(new_user)
-        
+
         token = create_access_token(subject=user.id)
-        
+
         from app.schemas.user import UserDTO
+
         return AuthResponse(
-            user=UserDTO.from_orm(user),
-            access_token=token,
-            token_type="bearer"
+            user=UserDTO.from_orm(user), access_token=token, token_type="bearer"
         )
 
     async def login(self, data: UserLogin) -> AuthResponse:
         user = await self.user_repo.get_by_email(data.email)
         if not user or not verify_password(data.password, user.password_hash):
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
             )
-            
+
         token = create_access_token(subject=user.id)
-        
+
         from app.schemas.user import UserDTO
+
         return AuthResponse(
-            user=UserDTO.from_orm(user),
-            access_token=token,
-            token_type="bearer"
+            user=UserDTO.from_orm(user), access_token=token, token_type="bearer"
         )

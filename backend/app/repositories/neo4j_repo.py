@@ -1,6 +1,7 @@
 """
 Neo4j repository for read-only graph topology traversals.
 """
+
 from __future__ import annotations
 
 import asyncio

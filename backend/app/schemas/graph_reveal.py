@@ -8,6 +8,7 @@ class GraphNodeStateDTO(BaseModel):
     Implements the four-state graph reveal (System Design Section E):
     LOCKED / AVAILABLE / IN_PROGRESS / MASTERED / DUE.
     """
+
     model_config = ConfigDict(populate_by_name=True)
 
     id: str

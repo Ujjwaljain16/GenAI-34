@@ -10,7 +10,9 @@ from app.schemas.curriculum import CurriculumDTO, DailyPlanDTO
 router = APIRouter(prefix="/books", tags=["Curriculum"])
 
 
-def get_curriculum_service(session: AsyncSession = Depends(get_db)) -> CurriculumService:
+def get_curriculum_service(
+    session: AsyncSession = Depends(get_db),
+) -> CurriculumService:
     return CurriculumService(GraphRepository(session), CurriculumRepository(session))
 
 

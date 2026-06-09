@@ -4,6 +4,7 @@ import uuid
 from abc import ABC, abstractmethod
 from fastapi import UploadFile
 
+
 class StorageProvider(ABC):
     @abstractmethod
     async def save(self, file: UploadFile, user_id: str) -> str:
@@ -26,21 +27,21 @@ class LocalStorageProvider(StorageProvider):
     async def save(self, file: UploadFile, user_id: str) -> str:
         user_dir = os.path.join(self.base_dir, f"user_{user_id}")
         os.makedirs(user_dir, exist_ok=True)
-        
+
         # Secure filename to prevent path traversal
         filename = os.path.basename(file.filename)
         # Prefix with uuid to prevent overwriting
         unique_filename = f"{uuid.uuid4().hex}_{filename}"
-        
+
         # Forward slashes for consistency across OS if stored in DB
         storage_path = f"{self.base_dir}/user_{user_id}/{unique_filename}"
-        
+
         # Local physical path
         physical_path = os.path.join(user_dir, unique_filename)
-        
+
         with open(physical_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
+
         return storage_path
 
     def read(self, storage_path: str) -> bytes:
@@ -64,6 +65,7 @@ def get_storage_provider() -> StorageProvider:
     the StorageProvider interface, so swapping is a one-line change.
     """
     from app.core.config import settings
+
     backend = (settings.STORAGE_BACKEND or "local").lower()
     if backend == "local":
         return LocalStorageProvider(base_dir=settings.STORAGE_LOCAL_DIR)

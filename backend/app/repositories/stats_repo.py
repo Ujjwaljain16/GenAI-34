@@ -29,7 +29,8 @@ class StatsRepository:
                 GROUP BY b.id, b.title, b.author, b.status
                 ORDER BY b.created_at DESC
             """),
-            {"uid": user_id})
+            {"uid": user_id},
+        )
         return [dict(r._mapping) for r in rows]
 
     async def global_totals(self, user_id: str) -> dict:
@@ -41,10 +42,14 @@ class StatsRepository:
                   COALESCE(AVG(mastery_score), 0) AS avg_mastery
                 FROM concept_mastery WHERE user_id = :uid
             """),
-            {"uid": user_id})
+            {"uid": user_id},
+        )
         row = r.first()
-        return {"mastered": row.mastered or 0, "tracked": row.tracked or 0,
-                "avg_mastery": float(row.avg_mastery or 0.0)}
+        return {
+            "mastered": row.mastered or 0,
+            "tracked": row.tracked or 0,
+            "avg_mastery": float(row.avg_mastery or 0.0),
+        }
 
     async def weak_spots(self, user_id: str, limit: int = 10) -> List[dict]:
         rows = await self.session.execute(
@@ -57,7 +62,8 @@ class StatsRepository:
                 ORDER BY cm.mastery_score ASC
                 LIMIT :lim
             """),
-            {"uid": user_id, "lim": limit})
+            {"uid": user_id, "lim": limit},
+        )
         return [dict(r._mapping) for r in rows]
 
     async def activity_dates(self, user_id: str) -> List[date]:
@@ -74,11 +80,15 @@ class StatsRepository:
                 WHERE d IS NOT NULL
                 ORDER BY d DESC
             """),
-            {"uid": user_id})
+            {"uid": user_id},
+        )
         return [r[0] for r in rows]
 
     async def total_due(self, user_id: str) -> int:
         r = await self.session.execute(
-            text("SELECT COUNT(*) FROM concept_fsrs WHERE user_id = :uid AND next_due IS NOT NULL AND next_due <= NOW()"),
-            {"uid": user_id})
+            text(
+                "SELECT COUNT(*) FROM concept_fsrs WHERE user_id = :uid AND next_due IS NOT NULL AND next_due <= NOW()"
+            ),
+            {"uid": user_id},
+        )
         return int(r.scalar() or 0)

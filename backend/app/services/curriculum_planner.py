@@ -6,13 +6,13 @@ explains curriculum." The learning ORDER and gating here are fully deterministic
 (topological over the prerequisite DAG, filtered by the learner's mastery
 state). Any natural-language explanation is a separate, optional LLM step.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Sequence, Tuple
 
-from app.services.assessment_walk import topological_order
 from app.services.mastery_engine import MASTERY_THRESHOLD
 
 # Default minutes per item when a concept has no estimate (UI time hints).
@@ -24,18 +24,22 @@ class CurriculumItem:
     concept_id: str
     title: str
     order_index: int
-    state: str                  # LOCKED | AVAILABLE | IN_PROGRESS | MASTERED | DUE
+    state: str  # LOCKED | AVAILABLE | IN_PROGRESS | MASTERED | DUE
     mastery: float
     estimated_minutes: int
-    unmet_prerequisites: List[str] = field(default_factory=list)  # titles, for "complete X first"
-    subtopics: List[str] = field(default_factory=list)            # sub-topics within the concept
+    unmet_prerequisites: List[str] = field(
+        default_factory=list
+    )  # titles, for "complete X first"
+    subtopics: List[str] = field(default_factory=list)  # sub-topics within the concept
 
 
-def build_curriculum(concepts: Sequence[dict],
-                     prereq_edges: Sequence[Tuple[str, str]],
-                     states: Dict[str, str],
-                     masteries: Dict[str, float],
-                     neo4j_topological_order: List[str]) -> List[CurriculumItem]:
+def build_curriculum(
+    concepts: Sequence[dict],
+    prereq_edges: Sequence[Tuple[str, str]],
+    states: Dict[str, str],
+    masteries: Dict[str, float],
+    neo4j_topological_order: List[str],
+) -> List[CurriculumItem]:
     """Ordered learning path for one book.
 
     `concepts` are dicts: {id, title, estimated_minutes}. `states` maps
@@ -45,7 +49,7 @@ def build_curriculum(concepts: Sequence[dict],
     """
     by_id = {c["id"]: c for c in concepts}
     order = list(neo4j_topological_order)
-    
+
     # Defensive: Ensure all concepts exist in the topological order
     for cid in by_id.keys():
         if cid not in order:
@@ -55,8 +59,12 @@ def build_curriculum(concepts: Sequence[dict],
     for src, dst in prereq_edges:
         direct_prereqs[dst].append(src)
 
-    mastered = {cid for cid in by_id if states.get(cid) == "MASTERED"
-                or (cid not in states and masteries.get(cid, 0.0) >= MASTERY_THRESHOLD)}
+    mastered = {
+        cid
+        for cid in by_id
+        if states.get(cid) == "MASTERED"
+        or (cid not in states and masteries.get(cid, 0.0) >= MASTERY_THRESHOLD)
+    }
 
     items: List[CurriculumItem] = []
     for idx, cid in enumerate(order):
@@ -65,23 +73,27 @@ def build_curriculum(concepts: Sequence[dict],
             state = states[cid]
         else:
             state = "AVAILABLE" if not direct_prereqs.get(cid) else "LOCKED"
-        unmet = [by_id[p]["title"] for p in direct_prereqs.get(cid, []) if p not in mastered]
-        items.append(CurriculumItem(
-            concept_id=cid,
-            title=c["title"],
-            order_index=idx,
-            state=state,
-            mastery=round(float(masteries.get(cid, 0.0)), 4),
-            estimated_minutes=int(c.get("estimated_minutes") or DEFAULT_MINUTES),
-            unmet_prerequisites=unmet,
-            subtopics=list(c.get("subtopics") or []),
-        ))
+        unmet = [
+            by_id[p]["title"] for p in direct_prereqs.get(cid, []) if p not in mastered
+        ]
+        items.append(
+            CurriculumItem(
+                concept_id=cid,
+                title=c["title"],
+                order_index=idx,
+                state=state,
+                mastery=round(float(masteries.get(cid, 0.0)), 4),
+                estimated_minutes=int(c.get("estimated_minutes") or DEFAULT_MINUTES),
+                unmet_prerequisites=unmet,
+                subtopics=list(c.get("subtopics") or []),
+            )
+        )
     return items
 
 
 @dataclass
 class DailyPlan:
-    mode: str                    # revise_only | learn_only | both | all_caught_up
+    mode: str  # revise_only | learn_only | both | all_caught_up
     revise: List[CurriculumItem]
     learn: List[CurriculumItem]
     estimated_minutes: int
@@ -91,7 +103,7 @@ def build_daily_plan(items: Sequence[CurriculumItem], daily_new_cap: int) -> Dai
     """One of: revise_only / learn_only / both / all_caught_up (Section G #29)."""
     due = [it for it in items if it.state == "DUE"]
     available = [it for it in items if it.state in ("AVAILABLE", "IN_PROGRESS")]
-    learn = available[:max(0, daily_new_cap)]
+    learn = available[: max(0, daily_new_cap)]
 
     if not due and not learn:
         mode = "all_caught_up"
@@ -102,5 +114,7 @@ def build_daily_plan(items: Sequence[CurriculumItem], daily_new_cap: int) -> Dai
     else:
         mode = "both"
 
-    minutes = sum(it.estimated_minutes for it in due) + sum(it.estimated_minutes for it in learn)
+    minutes = sum(it.estimated_minutes for it in due) + sum(
+        it.estimated_minutes for it in learn
+    )
     return DailyPlan(mode=mode, revise=due, learn=learn, estimated_minutes=minutes)

@@ -1,20 +1,23 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
-from datetime import datetime, date
+
 
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=1)  # Maps to full_name
     email: EmailStr
     password: str = Field(..., min_length=8)
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    user: UserDTO
+    user: "UserDTO"
+
 
 class UserDTO(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -47,9 +50,12 @@ class UserDTO(BaseModel):
             notifyDueReviews=user.notify_due_reviews,
             notifyProcessing=user.notify_processing,
             globalStreak=user.global_streak,
-            lastActiveDate=user.last_active_date.isoformat() if user.last_active_date else None,
-            createdAt=user.created_at.isoformat()
+            lastActiveDate=user.last_active_date.isoformat()
+            if user.last_active_date
+            else None,
+            createdAt=user.created_at.isoformat(),
         )
+
 
 class UserUpdateDTO(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

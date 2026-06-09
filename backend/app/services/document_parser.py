@@ -1,11 +1,12 @@
 import fitz  # PyMuPDF
 from typing import Dict, Any
 
+
 class DocumentParser:
     """
     Parses documents (PDFs initially) to extract raw text and metadata.
     """
-    
+
     @staticmethod
     def parse_pdf(file_path: str) -> Dict[str, Any]:
         """
@@ -15,23 +16,21 @@ class DocumentParser:
             doc = fitz.open(file_path)
             metadata = doc.metadata
             pages = []
-            
+
             for page_num in range(len(doc)):
                 page = doc.load_page(page_num)
                 text = page.get_text()
-                pages.append({
-                    "page_num": page_num + 1,  # 1-indexed
-                    "text": text
-                })
-                
-            return {
-                "metadata": metadata,
-                "page_count": len(doc),
-                "pages": pages
-            }
+                pages.append(
+                    {
+                        "page_num": page_num + 1,  # 1-indexed
+                        "text": text,
+                    }
+                )
+
+            return {"metadata": metadata, "page_count": len(doc), "pages": pages}
         except Exception as e:
             raise ValueError(f"Failed to parse PDF {file_path}: {str(e)}")
-            
+
     @staticmethod
     def parse(file_path: str, mime_type: str = "application/pdf") -> Dict[str, Any]:
         """
@@ -40,4 +39,6 @@ class DocumentParser:
         if "pdf" in mime_type.lower() or file_path.lower().endswith(".pdf"):
             return DocumentParser.parse_pdf(file_path)
         else:
-            raise NotImplementedError(f"Parsing for mime type {mime_type} is not supported yet.")
+            raise NotImplementedError(
+                f"Parsing for mime type {mime_type} is not supported yet."
+            )

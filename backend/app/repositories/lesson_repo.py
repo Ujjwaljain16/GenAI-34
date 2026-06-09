@@ -17,7 +17,8 @@ class LessonRepository:
     async def is_enrolled(self, user_id: str, book_id: str) -> bool:
         r = await self.session.execute(
             text("SELECT 1 FROM user_books WHERE user_id = :uid AND book_id = :bid"),
-            {"uid": user_id, "bid": book_id})
+            {"uid": user_id, "bid": book_id},
+        )
         return r.first() is not None
 
     async def get_concept(self, concept_id: str) -> Optional[Concept]:
@@ -35,14 +36,18 @@ class LessonRepository:
                 ORDER BY sc.created_at ASC
                 LIMIT 4
             """),
-            {"cid": concept_id})
+            {"cid": concept_id},
+        )
         chunks = [row[0] for row in r if row[0]]
         return ("\n\n".join(chunks))[:SOURCE_TEXT_MAX_CHARS]
 
     async def get_mastery(self, user_id: str, concept_id: str) -> float:
         r = await self.session.execute(
-            text("SELECT mastery_score FROM concept_mastery WHERE user_id = :uid AND concept_id = :cid"),
-            {"uid": user_id, "cid": concept_id})
+            text(
+                "SELECT mastery_score FROM concept_mastery WHERE user_id = :uid AND concept_id = :cid"
+            ),
+            {"uid": user_id, "cid": concept_id},
+        )
         row = r.first()
         return float(row[0]) if row else 0.0
 
@@ -54,10 +59,14 @@ class LessonRepository:
         return sess
 
     async def get_session(self, session_id: str) -> Optional[LessonSession]:
-        r = await self.session.execute(select(LessonSession).where(LessonSession.id == session_id))
+        r = await self.session.execute(
+            select(LessonSession).where(LessonSession.id == session_id)
+        )
         return r.scalars().first()
 
-    async def get_active_session(self, user_id: str, concept_id: str) -> Optional[LessonSession]:
+    async def get_active_session(
+        self, user_id: str, concept_id: str
+    ) -> Optional[LessonSession]:
         """Most recent IN_PROGRESS lesson for this user+concept (for resume)."""
         r = await self.session.execute(
             select(LessonSession)
@@ -77,7 +86,8 @@ class LessonRepository:
         r = await self.session.execute(
             select(TutorInteraction)
             .where(TutorInteraction.lesson_session_id == session_id)
-            .order_by(TutorInteraction.turn_index.asc()))
+            .order_by(TutorInteraction.turn_index.asc())
+        )
         return list(r.scalars().all())
 
     async def create_turn(self, turn: TutorInteraction) -> TutorInteraction:
@@ -85,7 +95,9 @@ class LessonRepository:
         await self.session.flush()
         return turn
 
-    async def create_user_asked_question(self, concept_id: str, question_text: str) -> str:
+    async def create_user_asked_question(
+        self, concept_id: str, question_text: str
+    ) -> str:
         """Capture a learner's own question (source=USER_ASKED) for later revision."""
         q = GeneratedQuestion(
             concept_id=concept_id,

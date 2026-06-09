@@ -2,7 +2,6 @@ import asyncio
 import json
 import uuid
 from enum import Enum
-from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
@@ -11,15 +10,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, get_current_user_id
 from app.core.config import settings
-from app.core.db import AsyncSessionLocal
 from app.repositories.book_repo import BookRepository
 from app.repositories.graph_repo import GraphRepository
 from app.schemas.book import (
-    UploadResponse, JobStatusDTO, BookDTO, BookCreate,
-    BookStatusDTO, BookDetailDTO, GraphDTO, BookSummaryDTO,
+    JobStatusDTO,
+    BookCreate,
+    BookStatusDTO,
+    BookDetailDTO,
+    GraphDTO,
+    BookSummaryDTO,
 )
 from app.schemas.graph_reveal import PersonalGraphDTO
-from app.services.book_service import BookService, mock_process_book_job
+from app.services.book_service import BookService
 from app.services.graph_reveal_service import GraphRevealService
 
 router = APIRouter(prefix="/books", tags=["Books"])
@@ -33,41 +35,42 @@ def get_book_service(session: AsyncSession = Depends(get_db)) -> BookService:
 # Pydantic models for graph editing (CR: typed models, not raw dict)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class DifficultyTier(str, Enum):
-    beginner     = "beginner"
+    beginner = "beginner"
     intermediate = "intermediate"
-    advanced     = "advanced"
+    advanced = "advanced"
 
 
 class EdgeType(str, Enum):
     PREREQUISITE = "PREREQUISITE"
-    RELATED      = "RELATED"
+    RELATED = "RELATED"
 
 
 class CreateNodeRequest(BaseModel):
-    title:          str            = Field(..., min_length=1, max_length=300)
-    summary:        str            = Field(default="")
+    title: str = Field(..., min_length=1, max_length=300)
+    summary: str = Field(default="")
     difficultyTier: DifficultyTier = DifficultyTier.beginner
-    sectionName:    str | None     = None
+    sectionName: str | None = None
 
 
 class UpdateNodeRequest(BaseModel):
-    title:          str | None            = Field(default=None, min_length=1, max_length=300)
-    summary:        str | None            = None
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    summary: str | None = None
     difficultyTier: DifficultyTier | None = None
-    sectionName:    str | None            = None
+    sectionName: str | None = None
 
 
 class CreateEdgeRequest(BaseModel):
-    fromNodeId:  str       = Field(..., min_length=1)
-    toNodeId:    str       = Field(..., min_length=1)
-    type:        EdgeType  = EdgeType.PREREQUISITE
-    confidence:  float     = Field(default=0.8, ge=0.0, le=1.0)
+    fromNodeId: str = Field(..., min_length=1)
+    toNodeId: str = Field(..., min_length=1)
+    type: EdgeType = EdgeType.PREREQUISITE
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
 
 
 class UpdateEdgeRequest(BaseModel):
-    type:       EdgeType | None = None
-    confidence: float | None   = Field(default=None, ge=0.0, le=1.0)
+    type: EdgeType | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class ChatEditRequest(BaseModel):
@@ -77,6 +80,7 @@ class ChatEditRequest(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _error(code: str, message: str, status: int = 400):
     """Standard error envelope used throughout this repo."""
@@ -125,6 +129,7 @@ async def _assert_node_in_book(
 # ─────────────────────────────────────────────────────────────────────────────
 # Existing endpoints (unchanged)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @router.post("", response_model=dict, status_code=201)
 async def create_book(
@@ -200,14 +205,17 @@ async def sync_graph_to_neo4j(
     if gv is None:
         raise HTTPException(status_code=409, detail="Knowledge graph not built yet")
 
-    concepts  = await repo.concepts(book_id, gv)
-    edges     = await repo.prerequisite_edges(book_id, gv)
-    states    = await repo.node_states(user_id, book_id)
+    concepts = await repo.concepts(book_id, gv)
+    edges = await repo.prerequisite_edges(book_id, gv)
+    states = await repo.node_states(user_id, book_id)
     masteries = await repo.masteries(user_id, book_id)
 
-    concept_dicts = [{"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level} for c in concepts]
-    edge_tuples   = [(str(e.from_concept_id), str(e.to_concept_id)) for e in edges]
-    mastery_rows  = [
+    concept_dicts = [
+        {"id": str(c.id), "name": c.name, "difficulty": c.difficulty_level}
+        for c in concepts
+    ]
+    edge_tuples = [(str(e.from_concept_id), str(e.to_concept_id)) for e in edges]
+    mastery_rows = [
         {"concept_id": cid, "score": score, "state": states.get(cid, "")}
         for cid, (score, _lr) in masteries.items()
     ]
@@ -216,8 +224,10 @@ async def sync_graph_to_neo4j(
     book_ok = await project_book_graph(book_id, concept_dicts, edge_tuples)
     user_ok = await project_user_state(user_id, mastery_rows, in_progress)
     return {
-        "bookProjected": book_ok, "userProjected": user_ok,
-        "concepts": len(concept_dicts), "edges": len(edge_tuples),
+        "bookProjected": book_ok,
+        "userProjected": user_ok,
+        "concepts": len(concept_dicts),
+        "edges": len(edge_tuples),
     }
 
 
@@ -267,6 +277,7 @@ async def confirm_book_graph(
 # Graph editing — Node CRUD
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.post("/{book_id}/graph/nodes", status_code=201)
 async def create_graph_node(
     book_id: str,
@@ -278,7 +289,7 @@ async def create_graph_node(
     await _assert_owned(session, user_id, book_id)
     gv = await _resolve_active_graph_version(session, book_id)
 
-    title   = body.title.strip()
+    title = body.title.strip()
     summary = body.summary.strip()
     node_id = str(uuid.uuid4())
 
@@ -291,13 +302,13 @@ async def create_graph_node(
                   (:id, :book_id, :gv, :name, :summary, :difficulty, :section, 0)
             """),
             {
-                "id":         node_id,
-                "book_id":    book_id,
-                "gv":         gv,
-                "name":       title,
-                "summary":    summary,
+                "id": node_id,
+                "book_id": book_id,
+                "gv": gv,
+                "name": title,
+                "summary": summary,
                 "difficulty": body.difficultyTier.value,
-                "section":    body.sectionName,
+                "section": body.sectionName,
             },
         )
         await session.commit()
@@ -307,11 +318,11 @@ async def create_graph_node(
     return {
         "success": True,
         "node": {
-            "id":             node_id,
-            "title":          title,
-            "summary":        summary,
+            "id": node_id,
+            "title": title,
+            "summary": summary,
             "difficultyTier": body.difficultyTier.value,
-            "sectionName":    body.sectionName,
+            "sectionName": body.sectionName,
         },
     }
 
@@ -358,7 +369,10 @@ async def update_graph_node(
     except Exception:
         _error("DB_ERROR", "Failed to update node", 500)
 
-    return {"success": True, "node": {"id": node_id, **body.model_dump(exclude_none=True)}}
+    return {
+        "success": True,
+        "node": {"id": node_id, **body.model_dump(exclude_none=True)},
+    }
 
 
 @router.delete("/{book_id}/graph/nodes/{node_id}", status_code=200)
@@ -401,6 +415,7 @@ async def delete_graph_node(
 # Graph editing — Edge CRUD
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.post("/{book_id}/graph/edges", status_code=201)
 async def create_graph_edge(
     book_id: str,
@@ -414,7 +429,7 @@ async def create_graph_edge(
 
     # CR: validate both nodes belong to this book before using their IDs
     await _assert_node_in_book(session, body.fromNodeId, book_id, gv)
-    await _assert_node_in_book(session, body.toNodeId,   book_id, gv)
+    await _assert_node_in_book(session, body.toNodeId, book_id, gv)
 
     # CR: explicit self-loop check before the recursive CTE
     if body.fromNodeId == body.toNodeId:
@@ -437,7 +452,11 @@ async def create_graph_edge(
         {"to_id": body.toNodeId, "from_id": body.fromNodeId, "bid": book_id, "gv": gv},
     )
     if cycle_check.fetchone():
-        _error("CYCLE_DETECTED", "This edge would create a cycle in the prerequisite graph", 409)
+        _error(
+            "CYCLE_DETECTED",
+            "This edge would create a cycle in the prerequisite graph",
+            409,
+        )
 
     edge_id = str(uuid.uuid4())
     try:
@@ -449,12 +468,12 @@ async def create_graph_edge(
                   (:id, :book_id, :gv, :from_id, :to_id, :edge_type, 1.0, :confidence)
             """),
             {
-                "id":         edge_id,
-                "book_id":    book_id,
-                "gv":         gv,
-                "from_id":    body.fromNodeId,
-                "to_id":      body.toNodeId,
-                "edge_type":  body.type.value,
+                "id": edge_id,
+                "book_id": book_id,
+                "gv": gv,
+                "from_id": body.fromNodeId,
+                "to_id": body.toNodeId,
+                "edge_type": body.type.value,
                 "confidence": body.confidence,
             },
         )
@@ -465,10 +484,10 @@ async def create_graph_edge(
     return {
         "success": True,
         "edge": {
-            "id":         edge_id,
+            "id": edge_id,
             "fromNodeId": body.fromNodeId,
-            "toNodeId":   body.toNodeId,
-            "type":       body.type.value,
+            "toNodeId": body.toNodeId,
+            "type": body.type.value,
             "confidence": body.confidence,
         },
     }
@@ -509,7 +528,10 @@ async def update_graph_edge(
     except Exception:
         _error("DB_ERROR", "Failed to update edge", 500)
 
-    return {"success": True, "edge": {"id": edge_id, **body.model_dump(exclude_none=True)}}
+    return {
+        "success": True,
+        "edge": {"id": edge_id, **body.model_dump(exclude_none=True)},
+    }
 
 
 @router.delete("/{book_id}/graph/edges/{edge_id}", status_code=200)
@@ -614,8 +636,7 @@ async def graph_chat_edit(
         {"bid": book_id, "gv": gv},
     )
     edges = [
-        {"id": str(r.id), "from": r.from_name, "to": r.to_name}
-        for r in edges_result
+        {"id": str(r.id), "from": r.from_name, "to": r.to_name} for r in edges_result
     ]
 
     prompt = _GRAPH_EDITOR_PROMPT.format(
@@ -627,7 +648,7 @@ async def graph_chat_edit(
     # CR: use settings.GEMINI_MODEL (not hardcoded string)
     # CR: offload blocking call to thread (matches LessonLLM/AssessmentLLM pattern)
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    model  = settings.GEMINI_MODEL
+    model = settings.GEMINI_MODEL
 
     def _call_gemini() -> str:
         response = client.models.generate_content(model=model, contents=prompt)
@@ -641,7 +662,11 @@ async def graph_chat_edit(
                 raw = raw[4:]
         proposal = json.loads(raw.strip())
     except json.JSONDecodeError:
-        _error("LLM_PARSE_ERROR", "The AI returned an unexpected format. Try rephrasing.", 500)
+        _error(
+            "LLM_PARSE_ERROR",
+            "The AI returned an unexpected format. Try rephrasing.",
+            500,
+        )
     except Exception:
         _error("LLM_ERROR", "AI service unavailable. Please try again.", 500)
 
@@ -652,13 +677,14 @@ async def graph_chat_edit(
 # Book library endpoints (unchanged)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=dict)
 async def get_user_books(
     user_id: str = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_db),
 ):
     service = BookService(BookRepository(session))
-    books   = await service.book_repo.get_books_by_user(user_id)
+    books = await service.book_repo.get_books_by_user(user_id)
     summaries = []
     for b in books:
         status_str = getattr(b, "status", "UPLOADING").lower()
@@ -688,7 +714,7 @@ async def get_book(
     user_id: str = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_db),
 ):
-    service   = BookService(BookRepository(session))
+    service = BookService(BookRepository(session))
     user_book = await service.book_repo.get_user_book(user_id, book_id)
     if not user_book:
         raise HTTPException(status_code=404, detail="Book not found in your library")
@@ -707,7 +733,10 @@ async def get_book(
         {"uid": user_id, "bid": book_id},
     )
     nodes = [
-        {"id": str(r.concept_id), "userNodeStates": [{"nodeId": str(r.concept_id), "state": r.state}]}
+        {
+            "id": str(r.concept_id),
+            "userNodeStates": [{"nodeId": str(r.concept_id), "state": r.state}],
+        }
         for r in states
     ]
     return {
