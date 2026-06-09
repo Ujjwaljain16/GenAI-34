@@ -10,7 +10,9 @@ class CurriculumItemDTO(BaseModel):
     state: str
     mastery: float
     estimatedMinutes: int = Field(alias="estimatedMinutes")
-    unmetPrerequisites: List[str] = Field(alias="unmetPrerequisites", default_factory=list)
+    unmetPrerequisites: List[str] = Field(
+        alias="unmetPrerequisites", default_factory=list
+    )
     subtopics: List[str] = Field(default_factory=list)
 
 
@@ -26,7 +28,7 @@ class CurriculumDTO(BaseModel):
 class DailyPlanDTO(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     bookId: str = Field(alias="bookId")
-    mode: str                      # revise_only | learn_only | both | all_caught_up
+    mode: str  # revise_only | learn_only | both | all_caught_up
     revise: List[CurriculumItemDTO]
     learn: List[CurriculumItemDTO]
     totalDue: int = Field(alias="totalDue")

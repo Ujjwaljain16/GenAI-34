@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.book import Book, GraphBuildJob, GraphVersion, UserBook
 
+
 class BookRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -17,7 +18,9 @@ class BookRepository:
         return job
 
     async def get_job_by_id(self, job_id: str) -> GraphBuildJob | None:
-        result = await self.session.execute(select(GraphBuildJob).where(GraphBuildJob.id == job_id))
+        result = await self.session.execute(
+            select(GraphBuildJob).where(GraphBuildJob.id == job_id)
+        )
         return result.scalars().first()
 
     async def get_latest_job_for_book(self, book_id: str) -> GraphBuildJob | None:
@@ -50,7 +53,9 @@ class BookRepository:
 
     async def get_user_book(self, user_id: str, book_id: str) -> UserBook | None:
         result = await self.session.execute(
-            select(UserBook).where(UserBook.user_id == user_id, UserBook.book_id == book_id)
+            select(UserBook).where(
+                UserBook.user_id == user_id, UserBook.book_id == book_id
+            )
         )
         return result.scalars().first()
 

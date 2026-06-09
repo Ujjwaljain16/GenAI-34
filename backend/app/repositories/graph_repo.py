@@ -4,7 +4,6 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.concept import Concept, ConceptEdge
-from app.models.mastery import ConceptMastery, UserConceptState
 
 
 class GraphRepository:
@@ -39,7 +38,9 @@ class GraphRepository:
         )
         return list(result.scalars().all())
 
-    async def prerequisite_edges(self, book_id: str, graph_version: int) -> List[ConceptEdge]:
+    async def prerequisite_edges(
+        self, book_id: str, graph_version: int
+    ) -> List[ConceptEdge]:
         result = await self.session.execute(
             select(ConceptEdge).where(
                 ConceptEdge.book_id == book_id,
@@ -61,7 +62,9 @@ class GraphRepository:
         )
         return {str(r.concept_id): r.state for r in rows}
 
-    async def masteries(self, user_id: str, book_id: str) -> Dict[str, Tuple[float, Optional[str]]]:
+    async def masteries(
+        self, user_id: str, book_id: str
+    ) -> Dict[str, Tuple[float, Optional[str]]]:
         rows = await self.session.execute(
             text("""
                 SELECT cm.concept_id, cm.mastery_score, cm.last_reviewed_at
@@ -90,4 +93,7 @@ class GraphRepository:
             """),
             {"uid": user_id, "bid": book_id},
         )
-        return {str(r.concept_id): (r.next_due.isoformat() if r.next_due else None) for r in rows}
+        return {
+            str(r.concept_id): (r.next_due.isoformat() if r.next_due else None)
+            for r in rows
+        }

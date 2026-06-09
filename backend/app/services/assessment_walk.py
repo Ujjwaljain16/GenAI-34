@@ -11,6 +11,7 @@ graph reveal states) unit-testable without infrastructure.
 Backend owns truth (AGENT.md): every decision here is deterministic. The LLM
 only generates and grades question *language*; it never decides state.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict, deque
@@ -69,12 +70,13 @@ class ConceptOutcome:
     tiers_passed: int  # 0..3 (0 also used for untested)
     mastery_estimate: float
     placement_state: str  # MASTERED | READY | LEARNING | WEAK | UNKNOWN
-    mastery_state: str     # MASTERED | PRACTICING | LEARNING | UNKNOWN
-    node_state: str        # MASTERED | AVAILABLE | LOCKED
+    mastery_state: str  # MASTERED | PRACTICING | LEARNING | UNKNOWN
+    node_state: str  # MASTERED | AVAILABLE | LOCKED
 
 
-def topological_order(concept_ids: Sequence[str],
-                      prereq_edges: Sequence[Tuple[str, str]]) -> List[str]:
+def topological_order(
+    concept_ids: Sequence[str], prereq_edges: Sequence[Tuple[str, str]]
+) -> List[str]:
     """Kahn's algorithm. Roots (no prerequisites) first, toward leaves.
 
     Edges are (from_id, to_id) where from_id is a prerequisite of to_id.
@@ -135,14 +137,16 @@ def _concept_progress(rs: List[Response]) -> Tuple[bool, int]:
         else:
             return True, tiers_passed  # failed a tier -> resolved
     if tiers_passed >= len(TIER_SEQUENCE):
-        return True, tiers_passed       # cleared all tiers -> resolved
-    return False, tiers_passed          # still escalating
+        return True, tiers_passed  # cleared all tiers -> resolved
+    return False, tiers_passed  # still escalating
 
 
-def next_question(concept_ids: Sequence[str],
-                  prereq_edges: Sequence[Tuple[str, str]],
-                  responses: Sequence[Response],
-                  blocked: Set[str]) -> Optional[NextQuestion]:
+def next_question(
+    concept_ids: Sequence[str],
+    prereq_edges: Sequence[Tuple[str, str]],
+    responses: Sequence[Response],
+    blocked: Set[str],
+) -> Optional[NextQuestion]:
     """The next (concept, tier) to ask, or None when the walk is complete.
 
     Walks concepts in topological order; skips blocked (presumed-unknown)
@@ -162,10 +166,12 @@ def next_question(concept_ids: Sequence[str],
     return None
 
 
-def compute_outcomes(concept_ids: Sequence[str],
-                     prereq_edges: Sequence[Tuple[str, str]],
-                     responses: Sequence[Response],
-                     blocked: Set[str]) -> List[ConceptOutcome]:
+def compute_outcomes(
+    concept_ids: Sequence[str],
+    prereq_edges: Sequence[Tuple[str, str]],
+    responses: Sequence[Response],
+    blocked: Set[str],
+) -> List[ConceptOutcome]:
     """Final per-concept placement after the walk completes.
 
     Every concept lands in a known state (Section D output contract): tested
@@ -202,13 +208,15 @@ def compute_outcomes(concept_ids: Sequence[str],
             prereqs = direct_prereqs.get(cid, [])
             all_prereqs_mastered = all(p in mastered for p in prereqs)
             node_state = "AVAILABLE" if all_prereqs_mastered else "LOCKED"
-        outcomes.append(ConceptOutcome(
-            concept_id=cid,
-            tested=tested,
-            tiers_passed=tiers_passed,
-            mastery_estimate=est,
-            placement_state=place,
-            mastery_state=mstate,
-            node_state=node_state,
-        ))
+        outcomes.append(
+            ConceptOutcome(
+                concept_id=cid,
+                tested=tested,
+                tiers_passed=tiers_passed,
+                mastery_estimate=est,
+                placement_state=place,
+                mastery_state=mstate,
+                node_state=node_state,
+            )
+        )
     return outcomes

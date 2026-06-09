@@ -13,6 +13,7 @@ All writes are best-effort and run in a thread (the neo4j driver is sync). A
 Neo4j outage must never break the Postgres-backed flows, so callers wrap these
 in try/except and log failures (eventually-consistent per AGENT.md).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -24,7 +25,9 @@ from app.core.neo4j import Neo4jDriver
 logger = logging.getLogger(__name__)
 
 
-def _project_book_sync(book_id: str, concepts: List[dict], edges: List[Tuple[str, str]]) -> None:
+def _project_book_sync(
+    book_id: str, concepts: List[dict], edges: List[Tuple[str, str]]
+) -> None:
     driver = Neo4jDriver.get_driver()
     with driver.session() as s:
         # Upsert concept nodes (mirror of Postgres concepts).
@@ -34,7 +37,8 @@ def _project_book_sync(book_id: str, concepts: List[dict], edges: List[Tuple[str
             MERGE (n:Concept {id: c.id})
             SET n.name = c.name, n.book_id = $book_id, n.difficulty = c.difficulty
             """,
-            concepts=concepts, book_id=book_id,
+            concepts=concepts,
+            book_id=book_id,
         )
         # Replace this book's prerequisite edges to match Postgres exactly.
         s.run(
@@ -54,7 +58,9 @@ def _project_book_sync(book_id: str, concepts: List[dict], edges: List[Tuple[str
         )
 
 
-def _project_user_sync(user_id: str, masteries: List[dict], in_progress: List[str]) -> None:
+def _project_user_sync(
+    user_id: str, masteries: List[dict], in_progress: List[str]
+) -> None:
     driver = Neo4jDriver.get_driver()
     with driver.session() as s:
         s.run("MERGE (:Student {id: $uid})", uid=user_id)
@@ -67,20 +73,27 @@ def _project_user_sync(user_id: str, masteries: List[dict], in_progress: List[st
             MERGE (st)-[r:HAS_MASTERY]->(c)
             SET r.score = m.score, r.state = m.state
             """,
-            uid=user_id, rows=masteries,
+            uid=user_id,
+            rows=masteries,
         )
-        s.run("MATCH (:Student {id: $uid})-[r:CURRENTLY_LEARNING]->() DELETE r", uid=user_id)
+        s.run(
+            "MATCH (:Student {id: $uid})-[r:CURRENTLY_LEARNING]->() DELETE r",
+            uid=user_id,
+        )
         s.run(
             """
             UNWIND $ids AS cid
             MATCH (st:Student {id: $uid}), (c:Concept {id: cid})
             MERGE (st)-[:CURRENTLY_LEARNING]->(c)
             """,
-            uid=user_id, ids=in_progress,
+            uid=user_id,
+            ids=in_progress,
         )
 
 
-async def project_book_graph(book_id: str, concepts: List[dict], edges: List[Tuple[str, str]]) -> bool:
+async def project_book_graph(
+    book_id: str, concepts: List[dict], edges: List[Tuple[str, str]]
+) -> bool:
     try:
         await asyncio.to_thread(_project_book_sync, book_id, concepts, edges)
         return True
@@ -89,7 +102,9 @@ async def project_book_graph(book_id: str, concepts: List[dict], edges: List[Tup
         return False
 
 
-async def project_user_state(user_id: str, masteries: List[dict], in_progress: List[str]) -> bool:
+async def project_user_state(
+    user_id: str, masteries: List[dict], in_progress: List[str]
+) -> bool:
     try:
         await asyncio.to_thread(_project_user_sync, user_id, masteries, in_progress)
         return True

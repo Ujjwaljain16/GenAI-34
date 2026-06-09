@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Optional
+from typing import List
 
 
 class LessonContentDTO(BaseModel):
@@ -10,7 +10,9 @@ class LessonContentDTO(BaseModel):
     analogy: str = ""
     workedExamples: List[str] = Field(alias="workedExamples", default_factory=list)
     commonMistakes: List[str] = Field(alias="commonMistakes", default_factory=list)
-    practiceExercises: List[str] = Field(alias="practiceExercises", default_factory=list)
+    practiceExercises: List[str] = Field(
+        alias="practiceExercises", default_factory=list
+    )
     summary: str = ""
     keyTakeaways: List[str] = Field(alias="keyTakeaways", default_factory=list)
 
@@ -52,7 +54,9 @@ class TutorResponseDTO(BaseModel):
     followUpQuestion: str = Field(alias="followUpQuestion", default="")
     hint: str = ""
     reasoningPrompt: str = Field(alias="reasoningPrompt", default="")
-    misconceptionsDetected: List[str] = Field(alias="misconceptionsDetected", default_factory=list)
+    misconceptionsDetected: List[str] = Field(
+        alias="misconceptionsDetected", default_factory=list
+    )
     questionCaptured: bool = Field(alias="questionCaptured", default=False)
 
 
@@ -78,6 +82,7 @@ class CompleteLessonDTO(BaseModel):
 
 
 # ---- mastery-check quiz ----------------------------------------------------
+
 
 class QuizQuestionDTO(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

@@ -12,7 +12,9 @@ router = APIRouter(prefix="/books", tags=["Revision"])
 
 
 def get_revision_service(session: AsyncSession = Depends(get_db)) -> RevisionService:
-    return RevisionService(GraphRepository(session), AssessmentRepository(session), FsrsRepository(session))
+    return RevisionService(
+        GraphRepository(session), AssessmentRepository(session), FsrsRepository(session)
+    )
 
 
 @router.get("/{book_id}/revision", response_model=DueListDTO)

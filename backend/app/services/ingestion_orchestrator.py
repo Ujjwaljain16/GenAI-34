@@ -17,14 +17,14 @@ Pipeline stages are fully resumable. A crash at any point is safe to retry:
   7. REPAIRING   — Cycle repair.
   8. PUBLISHING  — Mark graph_versions.is_current = TRUE, book.status = 'KG_BUILT'.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import math
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,9 +44,9 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────
 # Tunable batch sizes
 # ──────────────────────────────────────────────
-CHUNK_BATCH = 20        # commit every N chunks written
+CHUNK_BATCH = 20  # commit every N chunks written
 RAW_CONCEPT_BATCH = 20  # commit every N chunk extractions
-REL_BATCH = 50          # commit every N relationship candidates processed
+REL_BATCH = 50  # commit every N relationship candidates processed
 
 
 class IngestionOrchestrator:
@@ -65,7 +65,9 @@ class IngestionOrchestrator:
             book_id = ctx["book_id"]
             storage_path = ctx["storage_path"]
             graph_version_num = ctx["graph_version"]
-            version_id = await self._ensure_graph_version(book_id, graph_version_num, job_id, db)
+            version_id = await self._ensure_graph_version(
+                book_id, graph_version_num, job_id, db
+            )
 
             # ── CHUNKING ────────────────────────────────────────────────────
             await self._set_stage(job_id, "CHUNKING", db)
@@ -77,11 +79,15 @@ class IngestionOrchestrator:
 
             # ── CANONICALIZING ──────────────────────────────────────────────
             await self._set_stage(job_id, "CANONICALIZING", db)
-            canonical_concepts = await self._stage_canonicalize(book_id, graph_version_num, version_id, db)
+            canonical_concepts = await self._stage_canonicalize(
+                book_id, graph_version_num, version_id, db
+            )
 
             # ── EXTRACTING_RELATIONSHIPS ────────────────────────────────────
             await self._set_stage(job_id, "EXTRACTING_RELATIONSHIPS", db)
-            edges = await self._stage_relationships(book_id, graph_version_num, version_id, canonical_concepts, db)
+            edges = await self._stage_relationships(
+                book_id, graph_version_num, version_id, canonical_concepts, db
+            )
 
             # ── VALIDATING ──────────────────────────────────────────────────
             await self._set_stage(job_id, "VALIDATING", db)
@@ -94,17 +100,29 @@ class IngestionOrchestrator:
                         VALUES (:vid, :rc, :pass, :sev, :det)
                         ON CONFLICT DO NOTHING
                     """),
-                    {"vid": version_id, "rc": f["rule"], "pass": f["passed"],
-                     "sev": f["severity"], "det": json.dumps(f["detail"])},
+                    {
+                        "vid": version_id,
+                        "rc": f["rule"],
+                        "pass": f["passed"],
+                        "sev": f["severity"],
+                        "det": json.dumps(f["detail"]),
+                    },
                 )
 
             # ── REPAIRING ───────────────────────────────────────────────────
             await self._set_stage(job_id, "REPAIRING", db)
-            cycle_failures = [f["detail"]["cycles"] for f in failures if f["rule"] == "V01" and not f["passed"]]
+            cycle_failures = [
+                f["detail"]["cycles"]
+                for f in failures
+                if f["rule"] == "V01" and not f["passed"]
+            ]
             if cycle_failures:
                 edges_to_remove = GraphRepair.repair_cycles(cycle_failures[0], edges)
                 for edge in edges_to_remove:
-                    await db.execute(text("DELETE FROM concept_edges WHERE id = :id"), {"id": edge["id"]})
+                    await db.execute(
+                        text("DELETE FROM concept_edges WHERE id = :id"),
+                        {"id": edge["id"]},
+                    )
                     edges.remove(edge)
                     await db.execute(
                         text("""
@@ -129,7 +147,11 @@ class IngestionOrchestrator:
                         nodes_created = :nodes, edges_created = :edges
                     WHERE id = :job_id
                 """),
-                {"nodes": len(canonical_concepts), "edges": len(edges), "job_id": job_id},
+                {
+                    "nodes": len(canonical_concepts),
+                    "edges": len(edges),
+                    "job_id": job_id,
+                },
             )
 
             # Clean up source file if configured
@@ -137,14 +159,20 @@ class IngestionOrchestrator:
                 try:
                     self.storage.delete(storage_path)
                     await db.execute(
-                        text("UPDATE book_uploads SET upload_status = 'STORED' WHERE storage_path = :p"),
+                        text(
+                            "UPDATE book_uploads SET upload_status = 'STORED' WHERE storage_path = :p"
+                        ),
                         {"p": storage_path},
                     )
                 except Exception as del_err:
-                    logger.warning(f"Could not delete source file {storage_path}: {del_err}")
+                    logger.warning(
+                        f"Could not delete source file {storage_path}: {del_err}"
+                    )
 
             await db.commit()
-            logger.info(f"Job {job_id} completed — {len(canonical_concepts)} nodes, {len(edges)} edges")
+            logger.info(
+                f"Job {job_id} completed — {len(canonical_concepts)} nodes, {len(edges)} edges"
+            )
             return True
 
         except Exception as exc:
@@ -184,7 +212,9 @@ class IngestionOrchestrator:
             raise ValueError(f"Job {job_id} not found or missing book_upload.")
         return {"book_id": row[0], "storage_path": row[1], "graph_version": row[2]}
 
-    async def _set_stage(self, job_id: str, stage: str, db: AsyncSession, offset: int = 0) -> None:
+    async def _set_stage(
+        self, job_id: str, stage: str, db: AsyncSession, offset: int = 0
+    ) -> None:
         logger.info(f"Job {job_id} → stage {stage}")
         await db.execute(
             text("""
@@ -222,7 +252,9 @@ class IngestionOrchestrator:
     # ──────────────────────────────────────────────
     # Stage 2: Chunking
     # ──────────────────────────────────────────────
-    async def _stage_chunking(self, book_id: str, storage_path: str, db: AsyncSession) -> List[Dict]:
+    async def _stage_chunking(
+        self, book_id: str, storage_path: str, db: AsyncSession
+    ) -> List[Dict]:
         logger.info(f"Parsing document at {storage_path}")
         parsed_doc = DocumentParser.parse(storage_path)
         logger.info("Chunking document")
@@ -233,14 +265,22 @@ class IngestionOrchestrator:
 
         for chunk in chunks:
             cid = str(uuid.uuid4())
-            pending_batch.append({
-                "id": cid, "book_id": book_id,
-                "idx": chunk["chunk_index"], "content": chunk["content"],
-                "tokens": chunk["token_count"], "ps": chunk["page_start"], "pe": chunk["page_end"],
-            })
+            pending_batch.append(
+                {
+                    "id": cid,
+                    "book_id": book_id,
+                    "idx": chunk["chunk_index"],
+                    "content": chunk["content"],
+                    "tokens": chunk["token_count"],
+                    "ps": chunk["page_start"],
+                    "pe": chunk["page_end"],
+                }
+            )
 
             if len(pending_batch) >= CHUNK_BATCH:
-                chunk_records.extend(await self._flush_chunks(pending_batch, book_id, db))
+                chunk_records.extend(
+                    await self._flush_chunks(pending_batch, book_id, db)
+                )
                 pending_batch = []
 
         if pending_batch:
@@ -249,7 +289,9 @@ class IngestionOrchestrator:
         logger.info(f"Chunked into {len(chunk_records)} segments")
         return chunk_records
 
-    async def _flush_chunks(self, batch: List[Dict], book_id: str, db: AsyncSession) -> List[Dict]:
+    async def _flush_chunks(
+        self, batch: List[Dict], book_id: str, db: AsyncSession
+    ) -> List[Dict]:
         records = []
         for c in batch:
             result = await db.execute(
@@ -267,7 +309,9 @@ class IngestionOrchestrator:
                 records.append({"db_id": str(row[0]), "content": c["content"]})
             else:
                 existing = await db.execute(
-                    text("SELECT id, content FROM source_chunks WHERE book_id = :bid AND chunk_index = :idx"),
+                    text(
+                        "SELECT id, content FROM source_chunks WHERE book_id = :bid AND chunk_index = :idx"
+                    ),
                     {"bid": book_id, "idx": c["idx"]},
                 )
                 ex_row = existing.fetchone()
@@ -284,13 +328,17 @@ class IngestionOrchestrator:
     ) -> None:
         # Find which chunk_ids already have raw_concepts for this version_id
         existing_result = await db.execute(
-            text("SELECT DISTINCT source_chunk_id FROM raw_concepts WHERE graph_version_id = :vid"),
+            text(
+                "SELECT DISTINCT source_chunk_id FROM raw_concepts WHERE graph_version_id = :vid"
+            ),
             {"vid": version_id},
         )
         already_done: set = {str(r[0]) for r in existing_result.fetchall()}
         pending = [c for c in chunk_records if c["db_id"] not in already_done]
 
-        logger.info(f"Extracting concepts: {len(pending)} chunks pending (skipping {len(already_done)} already done)")
+        logger.info(
+            f"Extracting concepts: {len(pending)} chunks pending (skipping {len(already_done)} already done)"
+        )
 
         batch_count = 0
         for chunk in pending:
@@ -304,16 +352,23 @@ class IngestionOrchestrator:
                         ON CONFLICT DO NOTHING
                     """),
                     {
-                        "id": str(uuid.uuid4()), "vid": version_id, "cid": chunk["db_id"],
-                        "name": concept.name, "sum": concept.summary,
+                        "id": str(uuid.uuid4()),
+                        "vid": version_id,
+                        "cid": chunk["db_id"],
+                        "name": concept.name,
+                        "sum": concept.summary,
                         "diff": concept.difficulty,
-                        "subs": json.dumps(list(getattr(concept, "subtopics", []) or [])),
+                        "subs": json.dumps(
+                            list(getattr(concept, "subtopics", []) or [])
+                        ),
                     },
                 )
             batch_count += 1
             if batch_count % RAW_CONCEPT_BATCH == 0:
                 await db.commit()
-                logger.info(f"  … committed {batch_count}/{len(pending)} concept extractions")
+                logger.info(
+                    f"  … committed {batch_count}/{len(pending)} concept extractions"
+                )
 
         await db.commit()
         logger.info("Raw concept extraction complete")
@@ -326,17 +381,25 @@ class IngestionOrchestrator:
     ) -> List[Dict]:
         # Check if canonical concepts already exist (resume case)
         existing_result = await db.execute(
-            text("SELECT id, name, summary, difficulty_level, metadata FROM concepts WHERE book_id = :bid AND graph_version = :v"),
+            text(
+                "SELECT id, name, summary, difficulty_level, metadata FROM concepts WHERE book_id = :bid AND graph_version = :v"
+            ),
             {"bid": book_id, "v": graph_version_num},
         )
         existing_rows = existing_result.fetchall()
         if existing_rows:
-            logger.info(f"Canonicalization skipped — {len(existing_rows)} concepts already exist")
+            logger.info(
+                f"Canonicalization skipped — {len(existing_rows)} concepts already exist"
+            )
             return [
                 {
-                    "id": str(r[0]), "canonical_name": r[1], "canonical_summary": r[2],
+                    "id": str(r[0]),
+                    "canonical_name": r[1],
+                    "canonical_summary": r[2],
                     "difficulty": r[3],
-                    "subtopics": (json.loads(r[4]) if r[4] else {}).get("subtopics", []),
+                    "subtopics": (json.loads(r[4]) if r[4] else {}).get(
+                        "subtopics", []
+                    ),
                     "source_chunk_id": None,
                 }
                 for r in existing_rows
@@ -344,13 +407,17 @@ class IngestionOrchestrator:
 
         # Load all raw concepts for this version
         raw_result = await db.execute(
-            text("SELECT id, source_chunk_id, name, summary, difficulty_level, subtopics FROM raw_concepts WHERE graph_version_id = :vid"),
+            text(
+                "SELECT id, source_chunk_id, name, summary, difficulty_level, subtopics FROM raw_concepts WHERE graph_version_id = :vid"
+            ),
             {"vid": version_id},
         )
         raw_rows = raw_result.fetchall()
         raw_concepts = [
             {
-                "name": r[2], "summary": r[3], "difficulty": r[4],
+                "name": r[2],
+                "summary": r[3],
+                "difficulty": r[4],
                 "subtopics": json.loads(r[5]) if r[5] else [],
                 "source_chunk_id": str(r[1]),
             }
@@ -394,17 +461,26 @@ class IngestionOrchestrator:
                     RETURNING id
                 """),
                 {
-                    "id": concept_id, "book_id": book_id,
-                    "name": resolved["canonical_name"], "sum": resolved["canonical_summary"],
-                    "diff": resolved["difficulty"], "v": graph_version_num,
+                    "id": concept_id,
+                    "book_id": book_id,
+                    "name": resolved["canonical_name"],
+                    "sum": resolved["canonical_summary"],
+                    "diff": resolved["difficulty"],
+                    "v": graph_version_num,
                     "meta": metadata_json,
                 },
             )
             row = result.fetchone()
             if not row:
                 existing = await db.execute(
-                    text("SELECT id FROM concepts WHERE book_id = :bid AND name = :name AND graph_version = :v"),
-                    {"bid": book_id, "name": resolved["canonical_name"], "v": graph_version_num},
+                    text(
+                        "SELECT id FROM concepts WHERE book_id = :bid AND name = :name AND graph_version = :v"
+                    ),
+                    {
+                        "bid": book_id,
+                        "name": resolved["canonical_name"],
+                        "v": graph_version_num,
+                    },
                 )
                 ex_row = existing.fetchone()
                 if ex_row:
@@ -412,7 +488,9 @@ class IngestionOrchestrator:
             canonical_concepts.append(resolved)
 
             # Preserve lineage: link the canonical concept back to all source chunks that formed it
-            source_chunk_ids = {c.get("source_chunk_id") for c in cluster if c.get("source_chunk_id")}
+            source_chunk_ids = {
+                c.get("source_chunk_id") for c in cluster if c.get("source_chunk_id")
+            }
             for chunk_id in source_chunk_ids:
                 await db.execute(
                     text("""
@@ -420,9 +498,13 @@ class IngestionOrchestrator:
                         VALUES (:id, :concept_id, :chunk_id, 1.0)
                         ON CONFLICT DO NOTHING
                     """),
-                    {"id": str(uuid.uuid4()), "concept_id": resolved["id"], "chunk_id": str(chunk_id)},
+                    {
+                        "id": str(uuid.uuid4()),
+                        "concept_id": resolved["id"],
+                        "chunk_id": str(chunk_id),
+                    },
                 )
-            
+
             # Update raw_concepts lineage
             raw_concept_ids = [c["id"] for c in cluster]
             if raw_concept_ids:
@@ -435,12 +517,14 @@ class IngestionOrchestrator:
                     {
                         "can_id": resolved["id"],
                         "now": datetime.utcnow(),
-                        "raw_ids": raw_concept_ids
-                    }
+                        "raw_ids": raw_concept_ids,
+                    },
                 )
 
         await db.commit()
-        logger.info(f"Canonicalization done — {len(canonical_concepts)} canonical concepts")
+        logger.info(
+            f"Canonicalization done — {len(canonical_concepts)} canonical concepts"
+        )
         return canonical_concepts
 
     # ──────────────────────────────────────────────
@@ -457,7 +541,9 @@ class IngestionOrchestrator:
         # Ensure all candidate pairs exist in relationship_candidates table.
         # If they already exist we skip generation (resume).
         count_result = await db.execute(
-            text("SELECT COUNT(*) FROM relationship_candidates WHERE graph_version_id = :vid"),
+            text(
+                "SELECT COUNT(*) FROM relationship_candidates WHERE graph_version_id = :vid"
+            ),
             {"vid": version_id},
         )
         cand_count = count_result.scalar()
@@ -465,7 +551,9 @@ class IngestionOrchestrator:
         if cand_count == 0:
             logger.info("Generating candidate pairs…")
             pairs = CandidatePairGenerator.generate_pairs(canonical_concepts)
-            logger.info(f"Inserting {len(pairs)} candidate pairs into relationship_candidates")
+            logger.info(
+                f"Inserting {len(pairs)} candidate pairs into relationship_candidates"
+            )
             for src_id, tgt_id in pairs:
                 await db.execute(
                     text("""
@@ -474,7 +562,12 @@ class IngestionOrchestrator:
                         VALUES (:id, :vid, :src, :tgt, 'PENDING')
                         ON CONFLICT DO NOTHING
                     """),
-                    {"id": str(uuid.uuid4()), "vid": version_id, "src": src_id, "tgt": tgt_id},
+                    {
+                        "id": str(uuid.uuid4()),
+                        "vid": version_id,
+                        "src": src_id,
+                        "tgt": tgt_id,
+                    },
                 )
             await db.commit()
             logger.info("Candidate pairs committed")
@@ -500,15 +593,21 @@ class IngestionOrchestrator:
         edges: List[Dict] = []
         # Pre-load already-accepted edges (from a partial run)
         done_edges_result = await db.execute(
-            text("SELECT id, from_concept_id, to_concept_id, edge_type, confidence FROM concept_edges WHERE book_id = :bid AND graph_version = :v"),
+            text(
+                "SELECT id, from_concept_id, to_concept_id, edge_type, confidence FROM concept_edges WHERE book_id = :bid AND graph_version = :v"
+            ),
             {"bid": book_id, "v": graph_version_num},
         )
         for row in done_edges_result.fetchall():
-            edges.append({
-                "id": str(row[0]), "source_concept_id": str(row[1]),
-                "target_concept_id": str(row[2]),
-                "relationship_type": row[3], "confidence": float(row[4]),
-            })
+            edges.append(
+                {
+                    "id": str(row[0]),
+                    "source_concept_id": str(row[1]),
+                    "target_concept_id": str(row[2]),
+                    "relationship_type": row[3],
+                    "confidence": float(row[4]),
+                }
+            )
 
         for i, (cand_id, src_id, tgt_id) in enumerate(pending):
             src_id = str(src_id)
@@ -517,7 +616,9 @@ class IngestionOrchestrator:
             tgt_c = by_id.get(tgt_id)
             if not src_c or not tgt_c:
                 await db.execute(
-                    text("UPDATE relationship_candidates SET status = 'SKIPPED', processed_at = NOW() WHERE id = :id"),
+                    text(
+                        "UPDATE relationship_candidates SET status = 'SKIPPED', processed_at = NOW() WHERE id = :id"
+                    ),
                     {"id": str(cand_id)},
                 )
                 continue
@@ -538,9 +639,8 @@ class IngestionOrchestrator:
             confidence = float(rel.confidence)
 
             keep_edge = (
-                (rel.relationship_type == "PREREQUISITE" and rel.confidence > 0.5)
-                or (rel.relationship_type == "RELATED" and rel.confidence >= 0.85)
-            )
+                rel.relationship_type == "PREREQUISITE" and rel.confidence > 0.5
+            ) or (rel.relationship_type == "RELATED" and rel.confidence >= 0.85)
             if keep_edge:
                 edge_id = str(uuid.uuid4())
                 await db.execute(
@@ -551,15 +651,24 @@ class IngestionOrchestrator:
                         ON CONFLICT DO NOTHING
                     """),
                     {
-                        "id": edge_id, "book_id": book_id, "v": graph_version_num,
-                        "src": src_id, "tgt": tgt_id,
-                        "type": rel.relationship_type, "conf": rel.confidence,
+                        "id": edge_id,
+                        "book_id": book_id,
+                        "v": graph_version_num,
+                        "src": src_id,
+                        "tgt": tgt_id,
+                        "type": rel.relationship_type,
+                        "conf": rel.confidence,
                     },
                 )
-                edges.append({
-                    "id": edge_id, "source_concept_id": src_id, "target_concept_id": tgt_id,
-                    "relationship_type": rel.relationship_type, "confidence": confidence,
-                })
+                edges.append(
+                    {
+                        "id": edge_id,
+                        "source_concept_id": src_id,
+                        "target_concept_id": tgt_id,
+                        "relationship_type": rel.relationship_type,
+                        "confidence": confidence,
+                    }
+                )
                 status = "EDGE_CREATED"
 
             # Record in evaluated_pairs (graph-model-clean cache)
@@ -571,21 +680,29 @@ class IngestionOrchestrator:
                     ON CONFLICT DO NOTHING
                 """),
                 {
-                    "id": str(uuid.uuid4()), "vid": version_id, "src": src_id, "tgt": tgt_id,
-                    "status": status, "conf": confidence,
+                    "id": str(uuid.uuid4()),
+                    "vid": version_id,
+                    "src": src_id,
+                    "tgt": tgt_id,
+                    "status": status,
+                    "conf": confidence,
                     "llm": getattr(settings, "GEMINI_MODEL", "unknown"),
                 },
             )
             # Mark candidate processed
             await db.execute(
-                text("UPDATE relationship_candidates SET status = :s, confidence = :c, processed_at = NOW() WHERE id = :id"),
+                text(
+                    "UPDATE relationship_candidates SET status = :s, confidence = :c, processed_at = NOW() WHERE id = :id"
+                ),
                 {"s": status, "c": confidence, "id": str(cand_id)},
             )
 
             # Batch commit
             if (i + 1) % REL_BATCH == 0:
                 await db.commit()
-                logger.info(f"  … committed {i + 1}/{len(pending)} relationship evaluations")
+                logger.info(
+                    f"  … committed {i + 1}/{len(pending)} relationship evaluations"
+                )
 
         await db.commit()
         logger.info(f"Relationship extraction done — {len(edges)} edges accepted")

@@ -18,7 +18,7 @@ class DueListDTO(BaseModel):
 
 
 class ReviewRequest(BaseModel):
-    grade: int = Field(ge=1, le=4)   # 1=Again 2=Hard 3=Good 4=Easy
+    grade: int = Field(ge=1, le=4)  # 1=Again 2=Hard 3=Good 4=Easy
 
 
 class ReviewResultDTO(BaseModel):

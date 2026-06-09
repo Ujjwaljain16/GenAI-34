@@ -5,6 +5,7 @@ lesson completion (System Design Section F).
 Lessons are grounded in the concept's source chunks. The tutor never decides
 mastery — completion routes through the Progress engine (AGENT.md writer rule).
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -18,16 +19,25 @@ from app.repositories.assessment_repo import AssessmentRepository
 from app.services.lesson_llm import LessonLLM, PROMPT_VERSION
 from app.services.progress_service import ProgressService
 from app.schemas.lesson import (
-    LessonContentDTO, LessonSessionDTO, TurnDTO,
-    TutorResponseDTO, HintDTO, CompleteLessonDTO,
+    LessonContentDTO,
+    LessonSessionDTO,
+    TurnDTO,
+    TutorResponseDTO,
+    HintDTO,
+    CompleteLessonDTO,
 )
 
 CONVERSATION_TURN_WINDOW = 8  # recent turns sent to the tutor for context
 
 
 class LessonService:
-    def __init__(self, repo: LessonRepository, graph_repo: GraphRepository,
-                 assess_repo: AssessmentRepository, llm: LessonLLM | None = None):
+    def __init__(
+        self,
+        repo: LessonRepository,
+        graph_repo: GraphRepository,
+        assess_repo: AssessmentRepository,
+        llm: LessonLLM | None = None,
+    ):
         self.repo = repo
         self.graph = graph_repo
         self.assess = assess_repo
@@ -50,16 +60,24 @@ class LessonService:
     @staticmethod
     def _bloom_target(concept) -> str:
         meta = getattr(concept, "metadata_", None) or {}
-        if isinstance(meta, dict) and (meta.get("bloom_target") or meta.get("bloom_level")):
+        if isinstance(meta, dict) and (
+            meta.get("bloom_target") or meta.get("bloom_level")
+        ):
             return str(meta.get("bloom_target") or meta.get("bloom_level"))
         return "apply"
 
-    async def start_lesson(self, user_id: str, book_id: str, concept_id: str) -> LessonSessionDTO:
+    async def start_lesson(
+        self, user_id: str, book_id: str, concept_id: str
+    ) -> LessonSessionDTO:
         if not await self.repo.is_enrolled(user_id, book_id):
-            raise HTTPException(status_code=404, detail="Book not found in your library.")
+            raise HTTPException(
+                status_code=404, detail="Book not found in your library."
+            )
         concept = await self.repo.get_concept(concept_id)
         if not concept or str(concept.book_id) != book_id:
-            raise HTTPException(status_code=404, detail="Concept not found for this book.")
+            raise HTTPException(
+                status_code=404, detail="Concept not found for this book."
+            )
 
         # Resume an in-progress lesson if one exists (sessions are persistent):
         # reuse the generated content + transcript instead of regenerating.
@@ -67,35 +85,58 @@ class LessonService:
         if existing is not None:
             turns = await self.repo.get_turns(str(existing.id))
             return LessonSessionDTO(
-                sessionId=str(existing.id), conceptId=concept_id, conceptTitle=concept.name,
-                status=existing.status, content=self._content_dto(existing.generated_content or {}),
-                transcript=[TurnDTO(turnIndex=t.turn_index, userMessage=t.user_message,
-                                    assistantMessage=t.assistant_message, hintLevel=t.hint_level)
-                            for t in turns],
+                sessionId=str(existing.id),
+                conceptId=concept_id,
+                conceptTitle=concept.name,
+                status=existing.status,
+                content=self._content_dto(existing.generated_content or {}),
+                transcript=[
+                    TurnDTO(
+                        turnIndex=t.turn_index,
+                        userMessage=t.user_message,
+                        assistantMessage=t.assistant_message,
+                        hintLevel=t.hint_level,
+                    )
+                    for t in turns
+                ],
             )
 
         source_text = await self.repo.get_source_text(concept_id)
         mastery = await self.repo.get_mastery(user_id, concept_id)
         lesson = await self.llm.generate_lesson(
-            concept_name=concept.name, concept_summary=concept.summary,
-            source_text=source_text, mastery=mastery, misconceptions=[],
+            concept_name=concept.name,
+            concept_summary=concept.summary,
+            source_text=source_text,
+            mastery=mastery,
+            misconceptions=[],
             target_bloom=self._bloom_target(concept),
         )
         content = lesson.model_dump()
-        sess = await self.repo.create_session(LessonSession(
-            user_id=user_id, concept_id=concept_id, status="IN_PROGRESS",
-            generated_content=content,
-            generation_metadata={"model": self.llm.model_name, "prompt_version": PROMPT_VERSION,
-                                 "graph_version": await self.graph.active_graph_version(book_id)},
-            started_at=datetime.now(timezone.utc),
-        ))
+        sess = await self.repo.create_session(
+            LessonSession(
+                user_id=user_id,
+                concept_id=concept_id,
+                status="IN_PROGRESS",
+                generated_content=content,
+                generation_metadata={
+                    "model": self.llm.model_name,
+                    "prompt_version": PROMPT_VERSION,
+                    "graph_version": await self.graph.active_graph_version(book_id),
+                },
+                started_at=datetime.now(timezone.utc),
+            )
+        )
         gv = await self.graph.active_graph_version(book_id)
         if gv is not None:
             await self.assess.upsert_node_state(user_id, concept_id, gv, "IN_PROGRESS")
 
         return LessonSessionDTO(
-            sessionId=str(sess.id), conceptId=concept_id, conceptTitle=concept.name,
-            status=sess.status, content=self._content_dto(content), transcript=[],
+            sessionId=str(sess.id),
+            conceptId=concept_id,
+            conceptTitle=concept.name,
+            status=sess.status,
+            content=self._content_dto(content),
+            transcript=[],
         )
 
     async def _load_session_owned(self, user_id: str, session_id: str) -> LessonSession:
@@ -109,16 +150,30 @@ class LessonService:
         concept = await self.repo.get_concept(str(sess.concept_id))
         turns = await self.repo.get_turns(session_id)
         return LessonSessionDTO(
-            sessionId=str(sess.id), conceptId=str(sess.concept_id),
+            sessionId=str(sess.id),
+            conceptId=str(sess.concept_id),
             conceptTitle=concept.name if concept else "",
-            status=sess.status, content=self._content_dto(sess.generated_content or {}),
-            transcript=[TurnDTO(turnIndex=t.turn_index, userMessage=t.user_message,
-                                assistantMessage=t.assistant_message, hintLevel=t.hint_level)
-                        for t in turns],
+            status=sess.status,
+            content=self._content_dto(sess.generated_content or {}),
+            transcript=[
+                TurnDTO(
+                    turnIndex=t.turn_index,
+                    userMessage=t.user_message,
+                    assistantMessage=t.assistant_message,
+                    hintLevel=t.hint_level,
+                )
+                for t in turns
+            ],
         )
 
-    async def tutor_turn(self, user_id: str, session_id: str, message: str,
-                         hint_level: int, is_question: bool) -> TutorResponseDTO:
+    async def tutor_turn(
+        self,
+        user_id: str,
+        session_id: str,
+        message: str,
+        hint_level: int,
+        is_question: bool,
+    ) -> TutorResponseDTO:
         sess = await self._load_session_owned(user_id, session_id)
         concept = await self.repo.get_concept(str(sess.concept_id))
         source_text = await self.repo.get_source_text(str(sess.concept_id))
@@ -130,72 +185,97 @@ class LessonService:
             for t in turns[-CONVERSATION_TURN_WINDOW:]
         )
         out = await self.llm.tutor_turn(
-            concept_name=concept.name, concept_summary=concept.summary,
-            source_text=source_text, mastery=mastery,
-            conversation_history=history, hint_level=hint_level, student_message=message,
+            concept_name=concept.name,
+            concept_summary=concept.summary,
+            source_text=source_text,
+            mastery=mastery,
+            conversation_history=history,
+            hint_level=hint_level,
+            student_message=message,
         )
 
         question_id = None
         if is_question and message.strip():
-            question_id = await self.repo.create_user_asked_question(str(sess.concept_id), message.strip())
+            question_id = await self.repo.create_user_asked_question(
+                str(sess.concept_id), message.strip()
+            )
 
         turn_index = len(turns)
-        await self.repo.create_turn(TutorInteraction(
-            lesson_session_id=sess.id, turn_index=turn_index,
-            user_message=message, assistant_message=out.tutor_response,
-            hint_level=hint_level, question_id=question_id, model_name=self.llm.model_name,
-        ))
+        await self.repo.create_turn(
+            TutorInteraction(
+                lesson_session_id=sess.id,
+                turn_index=turn_index,
+                user_message=message,
+                assistant_message=out.tutor_response,
+                hint_level=hint_level,
+                question_id=question_id,
+                model_name=self.llm.model_name,
+            )
+        )
         return TutorResponseDTO(
-            turnIndex=turn_index, tutorResponse=out.tutor_response,
-            followUpQuestion=out.follow_up_question, hint=out.hint,
+            turnIndex=turn_index,
+            tutorResponse=out.tutor_response,
+            followUpQuestion=out.follow_up_question,
+            hint=out.hint,
             reasoningPrompt=out.reasoning_prompt,
             misconceptionsDetected=out.misconceptions_detected,
             questionCaptured=question_id is not None,
         )
 
-    async def hint(self, user_id: str, session_id: str, question: str, hint_level: int) -> HintDTO:
+    async def hint(
+        self, user_id: str, session_id: str, question: str, hint_level: int
+    ) -> HintDTO:
         sess = await self._load_session_owned(user_id, session_id)
         concept = await self.repo.get_concept(str(sess.concept_id))
-        prev = [t.assistant_message for t in await self.repo.get_turns(session_id) if t.hint_level > 0]
+        prev = [
+            t.assistant_message
+            for t in await self.repo.get_turns(session_id)
+            if t.hint_level > 0
+        ]
         out = await self.llm.generate_hint(concept.name, question, hint_level, prev)
-        return HintDTO(hintLevel=out.hint_level or hint_level, hint=out.hint, reason=out.reason)
+        return HintDTO(
+            hintLevel=out.hint_level or hint_level, hint=out.hint, reason=out.reason
+        )
 
     async def complete_lesson(self, user_id: str, session_id: str) -> CompleteLessonDTO:
         """End/pause the teaching session. A completion grants a small BONUS_LESSON
-        mastery increase through the progress engine. But it DOES NOT grant full mastery 
+        mastery increase through the progress engine. But it DOES NOT grant full mastery
         (that requires passing a quiz)."""
         sess = await self._load_session_owned(user_id, session_id)
         concept = await self.repo.get_concept(str(sess.concept_id))
-        
+
         unlocked = []
         if sess.status != "COMPLETED":
             sess.status = "COMPLETED"
             sess.completed_at = datetime.now(timezone.utc)
             progress = ProgressService(self.graph, self.assess)
             unlocked = await progress.complete_concept(
-                user_id, str(concept.book_id), str(sess.concept_id), source="LESSON")
-            
+                user_id, str(concept.book_id), str(sess.concept_id), source="LESSON"
+            )
+
         mastery = await self.repo.get_mastery(user_id, str(sess.concept_id))
         return CompleteLessonDTO(
             status="COMPLETED",
             masteryScore=mastery,
             unlockedNodes=unlocked,
             unlockedNodeIds=[],
-            nextDue=""
+            nextDue="",
         )
 
     # ---- mastery-check quiz (the gate that earns mastery) -------------------
 
-    QUIZ_TIERS = ["MCQ", "SHORT_ANSWER", "SCENARIO"]   # current + a bit beyond
-    QUIZ_PASS_THRESHOLD = 0.6                          # average score to pass
+    QUIZ_TIERS = ["MCQ", "SHORT_ANSWER", "SCENARIO"]  # current + a bit beyond
+    QUIZ_PASS_THRESHOLD = 0.6  # average score to pass
 
     def _assessment(self):
         # Reuse the assessment engine's question generation + grading.
         from app.services.assessment_service import AssessmentService
+
         return AssessmentService(self.assess)
 
     async def generate_quiz(self, user_id: str, session_id: str):
         from app.schemas.lesson import QuizDTO, QuizQuestionDTO
+
         sess = await self._load_session_owned(user_id, session_id)
         concept = await self.repo.get_concept(str(sess.concept_id))
         if not concept:
@@ -205,15 +285,25 @@ class LessonService:
         for tier in self.QUIZ_TIERS:
             q = await eng._generate_and_store_question(concept, tier)
             ak = q.answer_key or {}
-            questions.append(QuizQuestionDTO(
-                id=str(q.id), conceptId=str(concept.id), questionType=q.question_type,
-                questionText=q.question_text, options=list(ak.get("options") or []),
-            ))
-        return QuizDTO(sessionId=session_id, conceptId=str(concept.id),
-                       conceptTitle=concept.name, questions=questions)
+            questions.append(
+                QuizQuestionDTO(
+                    id=str(q.id),
+                    conceptId=str(concept.id),
+                    questionType=q.question_type,
+                    questionText=q.question_text,
+                    options=list(ak.get("options") or []),
+                )
+            )
+        return QuizDTO(
+            sessionId=session_id,
+            conceptId=str(concept.id),
+            conceptTitle=concept.name,
+            questions=questions,
+        )
 
     async def grade_quiz(self, user_id: str, session_id: str, responses: list):
         from app.schemas.lesson import QuizResultDTO, QuizResultItemDTO
+
         sess = await self._load_session_owned(user_id, session_id)
         concept = await self.repo.get_concept(str(sess.concept_id))
         eng = self._assessment()
@@ -224,13 +314,18 @@ class LessonService:
             if question is None:
                 continue
             ak = question.answer_key or {}
-            is_correct, correctness, score, feedback = await eng._grade(question, concept, r.answer, ak)
+            is_correct, correctness, score, feedback = await eng._grade(
+                question, concept, r.answer, ak
+            )
             scores.append(score)
-            items.append(QuizResultItemDTO(
-                questionId=r.question_id, isCorrect=is_correct,
-                correctAnswer=str(ak.get("expected_answer", "")),
-                explanation=question.explanation or "",
-            ))
+            items.append(
+                QuizResultItemDTO(
+                    questionId=r.question_id,
+                    isCorrect=is_correct,
+                    correctAnswer=str(ak.get("expected_answer", "")),
+                    explanation=question.explanation or "",
+                )
+            )
 
         avg = sum(scores) / len(scores) if scores else 0.0
         passed = avg >= self.QUIZ_PASS_THRESHOLD
@@ -240,10 +335,16 @@ class LessonService:
             sess.completed_at = datetime.now(timezone.utc)
             progress = ProgressService(self.graph, self.assess)
             unlocked = await progress.complete_concept(
-                user_id, str(concept.book_id), str(concept.id), source="QUIZ")
+                user_id, str(concept.book_id), str(concept.id), source="QUIZ"
+            )
         return QuizResultDTO(
-            passed=passed, score=round(avg, 2), results=items,
+            passed=passed,
+            score=round(avg, 2),
+            results=items,
             unlockedConcepts=unlocked,
-            message=("Passed — concept mastered!" if passed
-                     else "Not yet — review the explanations and try again."),
+            message=(
+                "Passed — concept mastered!"
+                if passed
+                else "Not yet — review the explanations and try again."
+            ),
         )

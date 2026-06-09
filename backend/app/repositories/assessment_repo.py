@@ -42,7 +42,9 @@ class AssessmentRepository:
         )
         return list(result.scalars().all())
 
-    async def get_prerequisite_edges(self, book_id: str, graph_version: int) -> List[ConceptEdge]:
+    async def get_prerequisite_edges(
+        self, book_id: str, graph_version: int
+    ) -> List[ConceptEdge]:
         result = await self.session.execute(
             select(ConceptEdge).where(
                 ConceptEdge.book_id == book_id,
@@ -72,7 +74,9 @@ class AssessmentRepository:
         )
         return result.scalars().first()
 
-    async def get_active_assessment(self, user_id: str, book_id: str) -> Optional[Assessment]:
+    async def get_active_assessment(
+        self, user_id: str, book_id: str
+    ) -> Optional[Assessment]:
         """Most recent IN_PROGRESS assessment for this user+book (for resume)."""
         result = await self.session.execute(
             select(Assessment)
@@ -116,31 +120,50 @@ class AssessmentRepository:
 
     # ---- outcomes -----------------------------------------------------------
 
-    async def upsert_outcome(self, assessment_id: str, concept_id: str,
-                             mastery_estimate: float, placement_state: str) -> None:
-        stmt = pg_insert(AssessmentOutcome.__table__).values(
-            assessment_id=assessment_id,
-            concept_id=concept_id,
-            mastery_estimate=mastery_estimate,
-            placement_state=placement_state,
-        ).on_conflict_do_update(
-            constraint="uq_assessment_concept_outcome",
-            set_={"mastery_estimate": mastery_estimate, "placement_state": placement_state},
+    async def upsert_outcome(
+        self,
+        assessment_id: str,
+        concept_id: str,
+        mastery_estimate: float,
+        placement_state: str,
+    ) -> None:
+        stmt = (
+            pg_insert(AssessmentOutcome.__table__)
+            .values(
+                assessment_id=assessment_id,
+                concept_id=concept_id,
+                mastery_estimate=mastery_estimate,
+                placement_state=placement_state,
+            )
+            .on_conflict_do_update(
+                constraint="uq_assessment_concept_outcome",
+                set_={
+                    "mastery_estimate": mastery_estimate,
+                    "placement_state": placement_state,
+                },
+            )
         )
         await self.session.execute(stmt)
 
     async def get_outcomes(self, assessment_id: str) -> List[AssessmentOutcome]:
         result = await self.session.execute(
-            select(AssessmentOutcome).where(AssessmentOutcome.assessment_id == assessment_id)
+            select(AssessmentOutcome).where(
+                AssessmentOutcome.assessment_id == assessment_id
+            )
         )
         return list(result.scalars().all())
 
     # ---- mastery + node state (learner model writers) -----------------------
 
-    async def upsert_concept_mastery(self, user_id: str, concept_id: str,
-                                     mastery_score: float, mastery_state: str,
-                                     source: str = "ASSESSMENT",
-                                     retention_score: float = 0.0) -> None:
+    async def upsert_concept_mastery(
+        self,
+        user_id: str,
+        concept_id: str,
+        mastery_score: float,
+        mastery_state: str,
+        source: str = "ASSESSMENT",
+        retention_score: float = 0.0,
+    ) -> None:
         now = datetime.now(timezone.utc)
         first_mastered = now if mastery_state == "MASTERED" else None
         set_ = {
@@ -155,33 +178,42 @@ class AssessmentRepository:
             set_["first_mastered_at"] = text(
                 "COALESCE(concept_mastery.first_mastered_at, NOW())"
             )
-        stmt = pg_insert(ConceptMastery.__table__).values(
-            user_id=user_id,
-            concept_id=concept_id,
-            mastery_score=mastery_score,
-            retention_score=retention_score,
-            mastery_state=mastery_state,
-            first_mastered_at=first_mastered,
-            last_reviewed_at=now,
-            updated_by_source=source,
-        ).on_conflict_do_update(
-            constraint="uq_user_concept_mastery",
-            set_=set_,
+        stmt = (
+            pg_insert(ConceptMastery.__table__)
+            .values(
+                user_id=user_id,
+                concept_id=concept_id,
+                mastery_score=mastery_score,
+                retention_score=retention_score,
+                mastery_state=mastery_state,
+                first_mastered_at=first_mastered,
+                last_reviewed_at=now,
+                updated_by_source=source,
+            )
+            .on_conflict_do_update(
+                constraint="uq_user_concept_mastery",
+                set_=set_,
+            )
         )
         await self.session.execute(stmt)
 
-    async def upsert_node_state(self, user_id: str, concept_id: str,
-                                graph_version: int, state: str) -> None:
+    async def upsert_node_state(
+        self, user_id: str, concept_id: str, graph_version: int, state: str
+    ) -> None:
         now = datetime.now(timezone.utc)
-        stmt = pg_insert(UserConceptState.__table__).values(
-            user_id=user_id,
-            concept_id=concept_id,
-            graph_version=graph_version,
-            state=state,
-            state_updated_at=now,
-        ).on_conflict_do_update(
-            constraint="uq_user_concept_state",
-            set_={"state": state, "state_updated_at": now},
+        stmt = (
+            pg_insert(UserConceptState.__table__)
+            .values(
+                user_id=user_id,
+                concept_id=concept_id,
+                graph_version=graph_version,
+                state=state,
+                state_updated_at=now,
+            )
+            .on_conflict_do_update(
+                constraint="uq_user_concept_state",
+                set_={"state": state, "state_updated_at": now},
+            )
         )
         await self.session.execute(stmt)
 
@@ -205,7 +237,9 @@ class AssessmentRepository:
         must deactivate the prior row explicitly within the same transaction.
         """
         await self.session.execute(
-            text("UPDATE learning_dna SET is_active = FALSE WHERE user_id = :uid AND is_active = TRUE"),
+            text(
+                "UPDATE learning_dna SET is_active = FALSE WHERE user_id = :uid AND is_active = TRUE"
+            ),
             {"uid": user_id},
         )
 

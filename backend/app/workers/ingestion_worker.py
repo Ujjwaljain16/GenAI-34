@@ -10,11 +10,11 @@ Scheduling:
 Run:
   python app/workers/ingestion_worker.py
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-import math
 import os
 import sys
 from datetime import datetime, timezone, timedelta
@@ -34,15 +34,15 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────
 # Config
 # ──────────────────────────────────────────────
-POLL_INTERVAL_S = 5       # idle sleep between polls
-MAX_RETRIES = 3           # max automatic retries per job
-BASE_BACKOFF_S = 30       # initial backoff delay in seconds
-MAX_BACKOFF_S = 600       # cap: 10 minutes
+POLL_INTERVAL_S = 5  # idle sleep between polls
+MAX_RETRIES = 3  # max automatic retries per job
+BASE_BACKOFF_S = 30  # initial backoff delay in seconds
+MAX_BACKOFF_S = 600  # cap: 10 minutes
 
 
 def _backoff_seconds(retry_count: int) -> int:
     """Exponential backoff with cap: 30s → 60s → 120s → … → 600s"""
-    return min(int(BASE_BACKOFF_S * (2 ** retry_count)), MAX_BACKOFF_S)
+    return min(int(BASE_BACKOFF_S * (2**retry_count)), MAX_BACKOFF_S)
 
 
 async def claim_next_job(session: AsyncSession) -> str | None:
@@ -77,11 +77,15 @@ async def claim_next_job(session: AsyncSession) -> str | None:
     return (str(row[0]), int(row[1])) if row else (None, 0)
 
 
-async def mark_for_retry(job_id: str, retry_count: int, error: str, session: AsyncSession) -> None:
+async def mark_for_retry(
+    job_id: str, retry_count: int, error: str, session: AsyncSession
+) -> None:
     """Schedule a failed job for retry with exponential backoff."""
     new_retry = retry_count + 1
     if new_retry >= MAX_RETRIES:
-        logger.error(f"Job {job_id} exhausted {MAX_RETRIES} retries. Marking permanently FAILED.")
+        logger.error(
+            f"Job {job_id} exhausted {MAX_RETRIES} retries. Marking permanently FAILED."
+        )
         await session.execute(
             text("""
                 UPDATE graph_build_jobs
@@ -120,11 +124,18 @@ async def worker_loop() -> None:
                 job_id, retry_count = await claim_next_job(session)
 
                 if job_id:
-                    logger.info(f"Claimed job {job_id} (retry #{retry_count}). Processing…")
+                    logger.info(
+                        f"Claimed job {job_id} (retry #{retry_count}). Processing…"
+                    )
                     success = await orchestrator.process_job(job_id, session)
                     if not success:
                         async with async_session_maker() as retry_session:
-                            await mark_for_retry(job_id, retry_count, "See job error_message", retry_session)
+                            await mark_for_retry(
+                                job_id,
+                                retry_count,
+                                "See job error_message",
+                                retry_session,
+                            )
                 else:
                     # No job found — idle sleep before next poll
                     await asyncio.sleep(POLL_INTERVAL_S)

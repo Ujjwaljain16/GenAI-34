@@ -5,6 +5,7 @@ Deterministic: the learning order and gating come entirely from the prerequisite
 DAG + the learner's mastery state (curriculum_planner). The graph decides the
 curriculum; this service just loads state, runs the planner, and persists.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -25,37 +26,58 @@ class CurriculumService:
 
     async def _load_items(self, user_id: str, book_id: str):
         if not await self.graph.is_enrolled(user_id, book_id):
-            raise HTTPException(status_code=404, detail="Book not found in your library.")
+            raise HTTPException(
+                status_code=404, detail="Book not found in your library."
+            )
         gv = await self.graph.active_graph_version(book_id)
         if gv is None:
-            raise HTTPException(status_code=409, detail="Knowledge graph not built for this book yet.")
+            raise HTTPException(
+                status_code=409, detail="Knowledge graph not built for this book yet."
+            )
         concepts = await self.graph.concepts(book_id, gv)
         edges = await self.graph.prerequisite_edges(book_id, gv)
         states = await self.graph.node_states(user_id, book_id)
-        masteries = {cid: score for cid, (score, _lr) in (await self.graph.masteries(user_id, book_id)).items()}
+        masteries = {
+            cid: score
+            for cid, (score, _lr) in (
+                await self.graph.masteries(user_id, book_id)
+            ).items()
+        }
 
         concept_dicts = [
             {
-                "id": str(c.id), "title": c.name, "estimated_minutes": c.estimated_minutes,
-                "subtopics": (c.metadata_ or {}).get("subtopics", []) if isinstance(c.metadata_, dict) else [],
+                "id": str(c.id),
+                "title": c.name,
+                "estimated_minutes": c.estimated_minutes,
+                "subtopics": (c.metadata_ or {}).get("subtopics", [])
+                if isinstance(c.metadata_, dict)
+                else [],
             }
             for c in concepts
         ]
         edge_tuples = [(str(e.from_concept_id), str(e.to_concept_id)) for e in edges]
-        
+
         from app.repositories.neo4j_repo import Neo4jRepository
+
         neo4j_repo = Neo4jRepository()
         neo4j_order = await neo4j_repo.get_topological_order(book_id)
-        
-        items = planner.build_curriculum(concept_dicts, edge_tuples, states, masteries, neo4j_order)
+
+        items = planner.build_curriculum(
+            concept_dicts, edge_tuples, states, masteries, neo4j_order
+        )
         return items
 
     @staticmethod
     def _item_dto(it: planner.CurriculumItem) -> CurriculumItemDTO:
         return CurriculumItemDTO(
-            conceptId=it.concept_id, title=it.title, orderIndex=it.order_index,
-            state=it.state, mastery=it.mastery, estimatedMinutes=it.estimated_minutes,
-            unmetPrerequisites=it.unmet_prerequisites, subtopics=it.subtopics,
+            conceptId=it.concept_id,
+            title=it.title,
+            orderIndex=it.order_index,
+            state=it.state,
+            mastery=it.mastery,
+            estimatedMinutes=it.estimated_minutes,
+            unmetPrerequisites=it.unmet_prerequisites,
+            subtopics=it.subtopics,
         )
 
     async def generate_curriculum(self, user_id: str, book_id: str) -> CurriculumDTO:
@@ -63,10 +85,15 @@ class CurriculumService:
         version = await self.repo.next_version(user_id, book_id)
         assessment_id = await self.repo.latest_assessment_id(user_id, book_id)
         curriculum_json = [asdict(it) for it in items]
-        await self.repo.create_plan(CurriculumPlan(
-            user_id=user_id, book_id=book_id, version=version,
-            curriculum_json=curriculum_json, generated_from_assessment=assessment_id,
-        ))
+        await self.repo.create_plan(
+            CurriculumPlan(
+                user_id=user_id,
+                book_id=book_id,
+                version=version,
+                curriculum_json=curriculum_json,
+                generated_from_assessment=assessment_id,
+            )
+        )
         return self._to_dto(book_id, version, items)
 
     async def get_curriculum(self, user_id: str, book_id: str) -> CurriculumDTO:
@@ -76,8 +103,12 @@ class CurriculumService:
             return await self.generate_curriculum(user_id, book_id)
         items = [
             planner.CurriculumItem(
-                concept_id=i["concept_id"], title=i["title"], order_index=i["order_index"],
-                state=i["state"], mastery=i["mastery"], estimated_minutes=i["estimated_minutes"],
+                concept_id=i["concept_id"],
+                title=i["title"],
+                order_index=i["order_index"],
+                state=i["state"],
+                mastery=i["mastery"],
+                estimated_minutes=i["estimated_minutes"],
                 unmet_prerequisites=i.get("unmet_prerequisites", []),
                 subtopics=i.get("subtopics", []),
             )
@@ -98,16 +129,18 @@ class CurriculumService:
 
         learn_items = []
         if today is not None:
-            for cid in (today.learn_concept_ids or []):
+            for cid in today.learn_concept_ids or []:
                 it = by_id.get(cid)
                 if it and it.state in ("AVAILABLE", "IN_PROGRESS"):
-                    learn_items.append(it)   # still pending → keep in today's focus
+                    learn_items.append(it)  # still pending → keep in today's focus
 
         if not learn_items:
             # No saved plan, or every item in it is done → regenerate a fresh batch.
             available = [it for it in items if it.state in ("AVAILABLE", "IN_PROGRESS")]
             learn_items = available[: max(0, cap)]
-            await self.repo.save_today_plan(user_id, book_id, [it.concept_id for it in learn_items])
+            await self.repo.save_today_plan(
+                user_id, book_id, [it.concept_id for it in learn_items]
+            )
 
         if not due and not learn_items:
             mode = "all_caught_up"
@@ -117,19 +150,26 @@ class CurriculumService:
             mode = "learn_only"
         else:
             mode = "both"
-        minutes = sum(it.estimated_minutes for it in due) + sum(it.estimated_minutes for it in learn_items)
+        minutes = sum(it.estimated_minutes for it in due) + sum(
+            it.estimated_minutes for it in learn_items
+        )
 
         return DailyPlanDTO(
-            bookId=book_id, mode=mode,
+            bookId=book_id,
+            mode=mode,
             revise=[self._item_dto(it) for it in due],
             learn=[self._item_dto(it) for it in learn_items],
-            totalDue=len(due), totalNew=len(learn_items),
+            totalDue=len(due),
+            totalNew=len(learn_items),
             estimatedMinutes=minutes,
         )
 
     def _to_dto(self, book_id: str, version: int, items) -> CurriculumDTO:
         mastered = sum(1 for it in items if it.state == "MASTERED")
         return CurriculumDTO(
-            bookId=book_id, version=version, totalConcepts=len(items),
-            masteredConcepts=mastered, items=[self._item_dto(it) for it in items],
+            bookId=book_id,
+            version=version,
+            totalConcepts=len(items),
+            masteredConcepts=mastered,
+            items=[self._item_dto(it) for it in items],
         )

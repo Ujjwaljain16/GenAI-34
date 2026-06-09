@@ -20,19 +20,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.api import auth, users, books, notifications, assessments, curriculum, lessons, revision, dashboard
+from app.api import (
+    auth,
+    users,
+    books,
+    notifications,
+    assessments,
+    curriculum,
+    lessons,
+    revision,
+    dashboard,
+)
+
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "error": {
-                "code": "HTTP_ERROR",
-                "message": str(exc.detail)
-            }
-        }
+        content={"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}},
     )
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -42,15 +49,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Invalid request parameters",
-                "details": exc.errors()
+                "details": exc.errors(),
             }
-        }
+        },
     )
+
 
 @app.get("/health")
 @app.get("/api/v1/health")
 async def health_check():
     return {"status": "ok", "app": "lexis"}
+
 
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(users.router, prefix=settings.API_V1_STR)

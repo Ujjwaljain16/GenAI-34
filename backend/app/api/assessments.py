@@ -5,15 +5,19 @@ from app.api.deps import get_db, get_current_user_id
 from app.repositories.assessment_repo import AssessmentRepository
 from app.services.assessment_service import AssessmentService
 from app.schemas.assessment import (
-    StartAssessmentRequest, StartAssessmentResponse,
-    SubmitResponseRequest, SubmitResponseResponse,
+    StartAssessmentRequest,
+    StartAssessmentResponse,
+    SubmitResponseRequest,
+    SubmitResponseResponse,
     AssessmentResultDTO,
 )
 
 router = APIRouter(prefix="/assessments", tags=["Assessment"])
 
 
-def get_assessment_service(session: AsyncSession = Depends(get_db)) -> AssessmentService:
+def get_assessment_service(
+    session: AsyncSession = Depends(get_db),
+) -> AssessmentService:
     return AssessmentService(AssessmentRepository(session))
 
 

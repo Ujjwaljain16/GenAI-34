@@ -5,6 +5,7 @@ Read-only aggregation over the learner model. Streaks are derived from existing
 activity timestamps (reviews, lesson + assessment completions) so no extra
 write path is needed.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -12,7 +13,10 @@ from typing import List
 
 from app.repositories.stats_repo import StatsRepository
 from app.schemas.dashboard import (
-    BookProgressDTO, WeakSpotDTO, DashboardDTO, NotificationDTO,
+    BookProgressDTO,
+    WeakSpotDTO,
+    DashboardDTO,
+    NotificationDTO,
 )
 
 
@@ -49,9 +53,12 @@ class StatsService:
 
         books = [
             BookProgressDTO(
-                bookId=str(b["id"]), title=b["title"], author=b.get("author"),
+                bookId=str(b["id"]),
+                title=b["title"],
+                author=b.get("author"),
                 status=str(b["status"]).lower(),
-                totalConcepts=b["total"], masteredConcepts=b["mastered"],
+                totalConcepts=b["total"],
+                masteredConcepts=b["mastered"],
                 percentMastered=_round_pct(b["mastered"], b["total"]),
                 percentRevealed=_round_pct(b["revealed"], b["total"]),
                 dueToday=b["due"],
@@ -60,12 +67,21 @@ class StatsService:
         ]
         streak = current_streak(dates)
         return DashboardDTO(
-            conceptsMastered=totals["mastered"], conceptsTracked=totals["tracked"],
-            avgMastery=round(totals["avg_mastery"], 3), totalDue=total_due,
-            globalStreak=streak, studiedToday=(date.today() in set(dates)),
+            conceptsMastered=totals["mastered"],
+            conceptsTracked=totals["tracked"],
+            avgMastery=round(totals["avg_mastery"], 3),
+            totalDue=total_due,
+            globalStreak=streak,
+            studiedToday=(date.today() in set(dates)),
             books=books,
-            weakSpots=[WeakSpotDTO(title=w["title"], bookTitle=w["book_title"],
-                                   mastery=float(w["mastery_score"])) for w in weak],
+            weakSpots=[
+                WeakSpotDTO(
+                    title=w["title"],
+                    bookTitle=w["book_title"],
+                    mastery=float(w["mastery_score"]),
+                )
+                for w in weak
+            ],
         )
 
     async def notifications(self, user_id: str) -> List[NotificationDTO]:
@@ -76,25 +92,47 @@ class StatsService:
             bid = str(b["id"])
             status = str(b["status"]).upper()
             if b["due"] > 0:
-                out.append(NotificationDTO(
-                    id=f"due-{bid}", type="due_reviews",
-                    message=f"You have {b['due']} review(s) due in '{b['title']}'.",
-                    link=f"/book/{bid}/revision"))
+                out.append(
+                    NotificationDTO(
+                        id=f"due-{bid}",
+                        type="due_reviews",
+                        message=f"You have {b['due']} review(s) due in '{b['title']}'.",
+                        link=f"/book/{bid}/revision",
+                    )
+                )
             if status in ("KG_BUILT", "KG_VERIFIED"):
-                out.append(NotificationDTO(
-                    id=f"review-{bid}", type="needs_review",
-                    message=f"'{b['title']}' graph is ready to review.",
-                    link=f"/book/{bid}"))
-            elif status == "READY" and b["total"] > 0 and b["mastered"] == 0 and b["revealed"] == 0:
-                out.append(NotificationDTO(
-                    id=f"assess-{bid}", type="take_assessment",
-                    message=f"'{b['title']}' is ready — take the placement assessment.",
-                    link=f"/book/{bid}/assessment"))
+                out.append(
+                    NotificationDTO(
+                        id=f"review-{bid}",
+                        type="needs_review",
+                        message=f"'{b['title']}' graph is ready to review.",
+                        link=f"/book/{bid}",
+                    )
+                )
+            elif (
+                status == "READY"
+                and b["total"] > 0
+                and b["mastered"] == 0
+                and b["revealed"] == 0
+            ):
+                out.append(
+                    NotificationDTO(
+                        id=f"assess-{bid}",
+                        type="take_assessment",
+                        message=f"'{b['title']}' is ready — take the placement assessment.",
+                        link=f"/book/{bid}/assessment",
+                    )
+                )
 
         dates = await self.repo.activity_dates(user_id)
         streak = current_streak(dates)
         if streak > 0 and date.today() not in set(dates):
-            out.append(NotificationDTO(
-                id="streak", type="streak",
-                message=f"Keep your {streak}-day streak alive — study today!", link="/"))
+            out.append(
+                NotificationDTO(
+                    id="streak",
+                    type="streak",
+                    message=f"Keep your {streak}-day streak alive — study today!",
+                    link="/",
+                )
+            )
         return out
