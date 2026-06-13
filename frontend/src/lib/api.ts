@@ -85,14 +85,14 @@ const todayPlus = (days: number) =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function loginUser(email: string, password: string): Promise<AuthResponseDTO> {
-  // Backend returns { user, token }; NextAuth expects { access_token, user }.
-  const raw = await apiPost<{ user: UserDTO; token: string }>("/auth/login", { email, password });
-  return { access_token: raw.token, token_type: "bearer", user: raw.user };
+  // Backend returns { user, access_token }; NextAuth expects { access_token, user }.
+  const raw = await apiPost<{ user: UserDTO; access_token: string }>("/auth/login", { email, password });
+  return { access_token: raw.access_token, token_type: "bearer", user: raw.user };
 }
 
 export async function registerUser(name: string, email: string, password: string): Promise<AuthResponseDTO> {
-  const raw = await apiPost<{ user: UserDTO; token: string }>("/auth/register", { name, email, password });
-  return { access_token: raw.token, token_type: "bearer", user: raw.user };
+  const raw = await apiPost<{ user: UserDTO; access_token: string }>("/auth/register", { name, email, password });
+  return { access_token: raw.access_token, token_type: "bearer", user: raw.user };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
