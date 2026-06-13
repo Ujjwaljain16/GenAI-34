@@ -72,7 +72,7 @@ interface ChatMessage {
   applied?:  boolean;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 export default function GraphVerifyPage() {
   const router             = useRouter();
@@ -196,7 +196,7 @@ export default function GraphVerifyPage() {
 
     try {
       const res = await fetch(
-        `${API_BASE}/api/v1/books/${bookId}/graph/chat`,
+        `${API_BASE}/books/${bookId}/graph/chat`,
         {
           method:  "POST",
           headers: {
