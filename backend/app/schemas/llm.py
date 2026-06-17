@@ -28,6 +28,11 @@ class RelationshipExtractionResponse(BaseModel):
     )
 
 
+class MergeJudgeOutput(BaseModel):
+    decision: str = Field(description="Must be exactly 'MERGE' or 'SEPARATE'")
+    reason: str = Field(description="Brief reason for the decision")
+
+
 class MergedConceptCandidate(BaseModel):
     canonical_name: str
     canonical_summary: str

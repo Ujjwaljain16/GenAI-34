@@ -11,6 +11,7 @@ from app.schemas.llm import (
     ConceptExtractionResponse,
     RelationshipExtractionResponse,
     MergedConceptCandidate,
+    MergeJudgeOutput,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,3 +146,31 @@ class LLMExtractor:
             "{{CANDIDATES_JSON}}", json.dumps(candidates, indent=2)
         )
         return self._call_with_retry(prompt, MergedConceptCandidate)
+
+    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Fetch embeddings using Gemini's text-embedding-004 model."""
+        # Split into batches to avoid exceeding limits
+        batch_size = 50
+        all_embeddings = []
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            response = self.client.models.embed_content(
+                model="text-embedding-004", contents=batch
+            )
+            for emb in response.embeddings:
+                all_embeddings.append(emb.values)
+        return all_embeddings
+
+    def judge_merge(
+        self, concept_a: Dict[str, Any], concept_b: Dict[str, Any]
+    ) -> bool:
+        """Use Gemini to judge if two candidates are functionally identical."""
+        prompt_template = self._load_prompt("merge_judge.md")
+        prompt = (
+            prompt_template.replace("{{CONCEPT_A_NAME}}", self._concept_field(concept_a, "name"))
+            .replace("{{CONCEPT_A_SUMMARY}}", self._concept_field(concept_a, "summary"))
+            .replace("{{CONCEPT_B_NAME}}", self._concept_field(concept_b, "name"))
+            .replace("{{CONCEPT_B_SUMMARY}}", self._concept_field(concept_b, "summary"))
+        )
+        result: MergeJudgeOutput = self._call_with_retry(prompt, MergeJudgeOutput)
+        return result.decision.upper() == "MERGE"
