@@ -7,7 +7,7 @@ class CanonicalizationEngine:
     Identifies duplicate concepts using fuzzy string matching and collapses them into a canonical representation.
     """
 
-    def __init__(self, similarity_threshold: float = 85.0):
+    def __init__(self, similarity_threshold: float = 95.0):
         self.similarity_threshold = similarity_threshold
 
     def find_duplicates(
