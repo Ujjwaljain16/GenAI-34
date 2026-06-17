@@ -200,13 +200,18 @@ class LessonService:
                 str(sess.concept_id), message.strip()
             )
 
+        # Combine response and follow-up question so history isn't trimmed
+        full_assistant_message = out.tutor_response
+        if out.follow_up_question:
+            full_assistant_message += f"\n\n{out.follow_up_question}"
+
         turn_index = len(turns)
         await self.repo.create_turn(
             TutorInteraction(
                 lesson_session_id=sess.id,
                 turn_index=turn_index,
                 user_message=message,
-                assistant_message=out.tutor_response,
+                assistant_message=full_assistant_message,
                 hint_level=hint_level,
                 question_id=question_id,
                 model_name=self.llm.model_name,
