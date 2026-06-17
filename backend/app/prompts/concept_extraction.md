@@ -13,5 +13,8 @@ For each concept, provide:
 Only extract concepts that are explicitly discussed or strongly implied in the text.
 Do not hallucinate concepts that are not present.
 
+**GRANULARITY RULE:** 
+If the text enumerates multiple distinct laws, principles, steps, or rules (e.g., First Law, Second Law, Third Law), you MUST extract EACH one as a separate concept. Do NOT collapse them into a single umbrella concept. However, if there is a general umbrella concept (e.g. "Newton's Laws of Motion"), you may extract that as its own separate concept as well.
+
 TEXT CHUNK:
 {{TEXT_CHUNK}}
