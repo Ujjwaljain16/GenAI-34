@@ -40,6 +40,19 @@ class LLMExtractor:
         with open(filepath, "r", encoding="utf-8") as f:
             return f.read()
 
+    def _resolve_refs(self, schema_dict: Any, defs: Any = None) -> Any:
+        if defs is None and isinstance(schema_dict, dict):
+            defs = schema_dict.pop("$defs", {})
+        if isinstance(schema_dict, dict):
+            if "$ref" in schema_dict:
+                ref_name = schema_dict["$ref"].split("/")[-1]
+                resolved = defs[ref_name].copy()
+                return self._resolve_refs(resolved, defs)
+            return {k: self._resolve_refs(v, defs) for k, v in schema_dict.items()}
+        elif isinstance(schema_dict, list):
+            return [self._resolve_refs(item, defs) for item in schema_dict]
+        return schema_dict
+
     def _call_with_retry(self, prompt: str, schema: Any) -> Any:
         """
         Executes the API call with a guaranteed delay to enforce rate limits,
@@ -48,10 +61,13 @@ class LLMExtractor:
         max_retries = 5
         base_delay = 5.0  # Guaranteed minimum delay per call to respect RPM
 
+        # Bypass google-genai extra_forbidden on nested Pydantic schemas by inlining references
+        schema_dict = self._resolve_refs(schema.model_json_schema())
+
         config = types.GenerateContentConfig(
             temperature=0.0,
             response_mime_type="application/json",
-            response_schema=schema,
+            response_schema=schema_dict,
         )
 
         for attempt in range(max_retries):
@@ -65,13 +81,20 @@ class LLMExtractor:
                 response = self.client.models.generate_content(
                     model=self.model_name, contents=prompt, config=config
                 )
-                if response.parsed is None:
-                    # In case parsing fails but response is valid
+                try:
+                    import json
+                    raw_text = response.text.strip()
+                    if raw_text.startswith("```"):
+                        raw_text = raw_text.strip("`").strip()
+                        if raw_text.lower().startswith("json"):
+                            raw_text = raw_text[4:].strip()
+                    parsed_json = json.loads(raw_text)
+                    return schema.model_validate(parsed_json)
+                except Exception as e:
                     logger.warning(
-                        f"Parsed response is None. Raw text: {response.text}"
+                        f"Failed to parse JSON into model. Raw text: {response.text}\nError: {e}"
                     )
                     raise ValueError("Failed to parse structured output from model.")
-                return response.parsed
             except Exception as e:
                 err_str = str(e)
                 if "429" in err_str or "quota" in err_str.lower():
