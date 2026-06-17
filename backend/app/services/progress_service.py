@@ -70,13 +70,14 @@ class ProgressService:
 
         # 4. Persist Bonus if awarded
         if result.bonus_awarded:
+            import uuid
             await self.fsrs.session.execute(
                 text("""
-                    INSERT INTO content_completions (user_id, content_type, content_id, content_version)
-                    VALUES (:u, 'concept', :c, :v)
+                    INSERT INTO content_completions (id, user_id, content_type, content_id, content_version)
+                    VALUES (:id, :u, 'concept', :c, :v)
                     ON CONFLICT DO NOTHING
                 """),
-                {"u": user_id, "c": concept_id, "v": gv},
+                {"id": uuid.uuid4(), "u": user_id, "c": concept_id, "v": gv},
             )
 
         # 5. Routing -> Node State
