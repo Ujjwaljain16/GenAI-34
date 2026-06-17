@@ -7,6 +7,8 @@ from typing import Dict, Any, List
 from google import genai
 from google.genai import types
 
+from app.core.config import settings
+from app.core.llm_pool import gemini_pool
 from app.schemas.llm import (
     ConceptExtractionResponse,
     RelationshipExtractionResponse,
