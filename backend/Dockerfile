@@ -20,5 +20,5 @@ RUN mkdir -p uploads && chmod 777 uploads
 ENV HOST=0.0.0.0
 ENV PORT=7860
 
-# Use sh -c to chain migrations before starting the server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 7860"]
+# Use sh -c to chain migrations, start the background worker, and start the server
+CMD ["sh", "-c", "alembic upgrade head && python -m app.workers.ingestion_worker & uvicorn app.main:app --host 0.0.0.0 --port 7860"]
