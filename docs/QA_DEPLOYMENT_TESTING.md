@@ -104,15 +104,21 @@ If you find a bug during deployment testing and need to fix it locally:
    ```
 2. **Set up your environment:**
    ```bash
+   # Spin up the local Postgres & Neo4j databases
+   docker-compose up -d
+   
    cd backend
    python -m venv venv
    source venv/bin/activate  # On Windows: .\venv\Scripts\activate
    pip install -r requirements.txt
    ```
 3. **Configure API Keys:**
-   Create a `.env` file in the `backend` directory and add your key:
+   Create a `.env` file in the `backend` directory. **You do NOT need a cloud database URL** (Docker handles the DBs locally). You only need your Gemini key:
    ```env
    GEMINI_API_KEY="your_api_key_here"
+   DATABASE_URL="postgresql://Lexis_user:your_password@localhost:5432/Lexis_db?sslmode=disable"
+   NEO4J_URI="bolt://localhost:7687"
+   NEO4J_PASSWORD="your_neo4j_password"
    ```
 4. **Run the API:**
    ```bash
