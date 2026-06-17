@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db, get_current_user_id
@@ -37,9 +37,17 @@ async def start_lesson(
     service: LessonService = Depends(get_lesson_service),
     session: AsyncSession = Depends(get_db),
 ):
-    result = await service.start_lesson(user_id, data.book_id, data.concept_id)
-    await session.commit()
-    return result
+    try:
+        result = await service.start_lesson(user_id, data.book_id, data.concept_id)
+        await session.commit()
+        return result
+    except RuntimeError as e:
+        if str(e) == "LLM_RATE_LIMIT":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI is currently overloaded. Please try again in a few seconds.",
+            )
+        raise
 
 
 @router.get("/{session_id}", response_model=LessonSessionDTO)
@@ -59,11 +67,19 @@ async def tutor_turn(
     service: LessonService = Depends(get_lesson_service),
     session: AsyncSession = Depends(get_db),
 ):
-    result = await service.tutor_turn(
-        user_id, session_id, data.message, data.hint_level, data.is_question
-    )
-    await session.commit()
-    return result
+    try:
+        result = await service.tutor_turn(
+            user_id, session_id, data.message, data.hint_level, data.is_question
+        )
+        await session.commit()
+        return result
+    except RuntimeError as e:
+        if str(e) == "LLM_RATE_LIMIT":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI is currently overloaded. Please try again in a few seconds.",
+            )
+        raise
 
 
 @router.post("/{session_id}/hint", response_model=HintDTO)
@@ -73,7 +89,15 @@ async def get_hint(
     user_id: str = Depends(get_current_user_id),
     service: LessonService = Depends(get_lesson_service),
 ):
-    return await service.hint(user_id, session_id, data.question, data.hint_level)
+    try:
+        return await service.hint(user_id, session_id, data.question, data.hint_level)
+    except RuntimeError as e:
+        if str(e) == "LLM_RATE_LIMIT":
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI is currently overloaded. Please try again in a few seconds.",
+            )
+        raise
 
 
 @router.post("/{session_id}/complete", response_model=CompleteLessonDTO)
