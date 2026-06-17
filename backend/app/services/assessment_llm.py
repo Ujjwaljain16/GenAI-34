@@ -80,7 +80,7 @@ class AssessmentLLM:
                     attempt + 1,
                     max_retries,
                     wait,
-                    err,
+                    e,
                 )
                 time.sleep(wait)
 
