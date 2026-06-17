@@ -76,8 +76,8 @@ class BookService:
         job_id = str(uuid.uuid4())
         await self.book_repo.session.execute(
             text("""
-            INSERT INTO graph_build_jobs (id, book_id, graph_version, status, book_upload_id)
-            VALUES (:id, :bid, 1, 'QUEUED', :upload_id)
+            INSERT INTO graph_build_jobs (id, book_id, graph_version, status, book_upload_id, current_offset, retry_count)
+            VALUES (:id, :bid, 1, 'QUEUED', :upload_id, 0, 0)
         """),
             {"id": job_id, "bid": book_id, "upload_id": upload_id},
         )
