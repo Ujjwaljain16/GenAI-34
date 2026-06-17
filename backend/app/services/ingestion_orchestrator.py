@@ -54,7 +54,7 @@ class IngestionOrchestrator:
         self.storage = storage_provider
         self.chunker = Chunker()
         self.llm = LLMExtractor()
-        self.canon = CanonicalizationEngine()
+        self.canon = CanonicalizationEngine(self.llm)
 
     # ──────────────────────────────────────────────
     # Main entry point
