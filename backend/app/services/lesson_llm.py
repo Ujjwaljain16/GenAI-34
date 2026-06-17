@@ -17,6 +17,7 @@ from google import genai
 from google.genai import types
 
 from app.core.config import settings
+from app.core.llm_pool import gemini_pool
 from app.schemas.llm import LessonOutput, TutorOutput, HintOutput, SubtopicsOutput
 
 logger = logging.getLogger(__name__)
@@ -25,9 +26,6 @@ PROMPT_VERSION = "v1"
 
 class LessonLLM:
     def __init__(self, model_name: str | None = None):
-        if not settings.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is not configured.")
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model_name = model_name or settings.GEMINI_MODEL or "gemini-2.5-flash-lite"
         self.prompts_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../prompts")
@@ -43,24 +41,36 @@ class LessonLLM:
             response_mime_type="application/json",
             response_schema=schema,
         )
-        for attempt in range(3):
+        for attempt in range(5):
             try:
-                resp = self.client.models.generate_content(
+                client = gemini_pool.get_client()
+                resp = client.models.generate_content(
                     model=self.model_name, contents=prompt, config=config
                 )
                 if resp.parsed is None:
                     raise ValueError(f"Empty structured output. Raw: {resp.text}")
                 return resp.parsed
             except Exception as e:  # noqa: BLE001
-                # Fail fast on rate limits. Sleeping during an active HTTP request
-                # causes the reverse proxy and DB connections to timeout and crash.
-                if "429" in str(e) or "quota" in str(e).lower():
+                is_quota = "429" in str(e) or "quota" in str(e).lower()
+                
+                # If we've exhausted all attempts
+                if attempt == 4:
+                    if is_quota:
+                        logger.error("LessonLLM fully rate limited on all keys: %s", e)
+                        raise RuntimeError("LLM_RATE_LIMIT") from e
+                    logger.error("LessonLLM call failed: %s", e)
+                    raise
+
+                # If rate limit and we have multiple keys, rotate and instantly retry
+                if is_quota and len(gemini_pool.clients) > 1:
+                    gemini_pool.rotate()
+                    continue
+
+                # If rate limit but we only have 1 key, fail fast to avoid DB timeouts
+                if is_quota:
                     logger.error("LessonLLM rate limited, failing fast: %s", e)
                     raise RuntimeError("LLM_RATE_LIMIT") from e
                     
-                if attempt == 2:
-                    logger.error("LessonLLM call failed: %s", e)
-                    raise
                 time.sleep(2)
 
     async def _call(self, prompt: str, schema: Any, temperature: float) -> Any:
