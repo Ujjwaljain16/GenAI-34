@@ -426,6 +426,7 @@ class IngestionOrchestrator:
             if isinstance(subt, str):
                 subt = json.loads(subt) if subt else []
             raw_concepts.append({
+                "id": str(r[0]),
                 "name": r[2],
                 "summary": r[3],
                 "difficulty": r[4],
@@ -439,9 +440,13 @@ class IngestionOrchestrator:
 
         for cluster in clusters:
             if len(cluster) == 1:
-                resolved = cluster[0]
-                resolved["canonical_name"] = resolved["name"]
-                resolved["canonical_summary"] = resolved["summary"]
+                resolved = {
+                    "canonical_name": cluster[0]["name"],
+                    "canonical_summary": cluster[0]["summary"],
+                    "difficulty": cluster[0]["difficulty"],
+                    "subtopics": cluster[0].get("subtopics", []),
+                    "source_chunk_id": cluster[0]["source_chunk_id"],
+                }
             else:
                 merged = self.llm.resolve_merge(cluster)
                 # Union subtopics from all candidates
