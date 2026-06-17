@@ -219,7 +219,10 @@ class IngestionOrchestrator:
         await db.execute(
             text("""
                 UPDATE graph_build_jobs
-                SET status = :stage, current_stage = :stage, current_offset = :offset, updated_at = NOW()
+                SET status = CAST(:stage AS graph_build_status), 
+                    current_stage = CAST(:stage AS VARCHAR), 
+                    current_offset = :offset, 
+                    updated_at = NOW()
                 WHERE id = :job_id
             """),
             {"stage": stage, "offset": offset, "job_id": job_id},

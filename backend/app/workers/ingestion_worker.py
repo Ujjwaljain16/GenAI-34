@@ -17,6 +17,8 @@ import asyncio
 import logging
 import os
 import sys
+
+print("!!! WORKER SCRIPT IS EXECUTING !!!", flush=True)
 from datetime import datetime, timezone, timedelta
 
 # Add backend dir to path if running directly
