@@ -394,19 +394,23 @@ class IngestionOrchestrator:
             logger.info(
                 f"Canonicalization skipped — {len(existing_rows)} concepts already exist"
             )
-            return [
-                {
+            ret = []
+            for r in existing_rows:
+                meta = r[4]
+                if isinstance(meta, str):
+                    meta = json.loads(meta) if meta else {}
+                elif not meta:
+                    meta = {}
+                    
+                ret.append({
                     "id": str(r[0]),
                     "canonical_name": r[1],
                     "canonical_summary": r[2],
                     "difficulty": r[3],
-                    "subtopics": (json.loads(r[4]) if r[4] else {}).get(
-                        "subtopics", []
-                    ),
+                    "subtopics": meta.get("subtopics", []),
                     "source_chunk_id": None,
-                }
-                for r in existing_rows
-            ]
+                })
+            return ret
 
         # Load all raw concepts for this version
         raw_result = await db.execute(
@@ -416,16 +420,18 @@ class IngestionOrchestrator:
             {"vid": version_id},
         )
         raw_rows = raw_result.fetchall()
-        raw_concepts = [
-            {
+        raw_concepts = []
+        for r in raw_rows:
+            subt = r[5]
+            if isinstance(subt, str):
+                subt = json.loads(subt) if subt else []
+            raw_concepts.append({
                 "name": r[2],
                 "summary": r[3],
                 "difficulty": r[4],
-                "subtopics": json.loads(r[5]) if r[5] else [],
+                "subtopics": subt if subt else [],
                 "source_chunk_id": str(r[1]),
-            }
-            for r in raw_rows
-        ]
+            })
 
         logger.info(f"Canonicalizing {len(raw_concepts)} raw concepts")
         clusters = self.canon.group_candidates(raw_concepts)
