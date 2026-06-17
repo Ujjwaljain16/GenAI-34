@@ -232,8 +232,8 @@ class IngestionOrchestrator:
         vid = str(uuid.uuid4())
         result = await db.execute(
             text("""
-                INSERT INTO graph_versions (id, book_id, version, is_current, build_job_id)
-                VALUES (:id, :book_id, :v, FALSE, :job_id)
+                INSERT INTO graph_versions (id, book_id, version, is_current, build_job_id, node_count, edge_count)
+                VALUES (:id, :book_id, :v, FALSE, :job_id, 0, 0)
                 ON CONFLICT (book_id, version) DO NOTHING
                 RETURNING id
             """),
