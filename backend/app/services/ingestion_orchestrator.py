@@ -142,6 +142,19 @@ class IngestionOrchestrator:
             )
             await db.execute(
                 text("""
+                    UPDATE graph_versions 
+                    SET node_count = :nodes,
+                        edge_count = :edges
+                    WHERE id = :vid
+                """),
+                {
+                    "nodes": len(canonical_concepts),
+                    "edges": len(edges),
+                    "vid": version_id
+                }
+            )
+            await db.execute(
+                text("""
                     UPDATE graph_build_jobs
                     SET status = 'COMPLETED', completed_at = NOW(),
                         current_stage = 'COMPLETED',
