@@ -660,8 +660,8 @@ class IngestionOrchestrator:
                 await db.execute(
                     text("""
                         INSERT INTO concept_edges
-                            (id, book_id, graph_version, from_concept_id, to_concept_id, edge_type, confidence)
-                        VALUES (:id, :book_id, :v, :src, :tgt, :type, :conf)
+                            (id, book_id, graph_version, from_concept_id, to_concept_id, edge_type, confidence, weight)
+                        VALUES (:id, :book_id, :v, :src, :tgt, :type, :conf, 1.0)
                         ON CONFLICT DO NOTHING
                     """),
                     {
