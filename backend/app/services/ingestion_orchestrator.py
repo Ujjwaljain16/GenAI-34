@@ -96,11 +96,12 @@ class IngestionOrchestrator:
                 await db.execute(
                     text("""
                         INSERT INTO graph_validation_results
-                            (graph_version_id, rule_code, passed, severity, detail)
-                        VALUES (:vid, :rc, :pass, :sev, :det)
+                            (id, graph_version_id, rule_code, passed, severity, detail)
+                        VALUES (:id, :vid, :rc, :pass, :sev, :det)
                         ON CONFLICT DO NOTHING
                     """),
                     {
+                        "id": str(uuid.uuid4()),
                         "vid": version_id,
                         "rc": f["rule"],
                         "pass": f["passed"],
@@ -127,10 +128,10 @@ class IngestionOrchestrator:
                     await db.execute(
                         text("""
                             INSERT INTO graph_repair_log
-                                (graph_version_id, operation, artifact_id, reason, before_value)
-                            VALUES (:vid, 'DELETE_EDGE', :eid, 'CYCLE_REPAIR', :val)
+                                (id, graph_version_id, operation, artifact_id, reason, before_value)
+                            VALUES (:id, :vid, 'DELETE_EDGE', :eid, 'CYCLE_REPAIR', :val)
                         """),
-                        {"vid": version_id, "eid": edge["id"], "val": json.dumps(edge)},
+                        {"id": str(uuid.uuid4()), "vid": version_id, "eid": edge["id"], "val": json.dumps(edge)},
                     )
 
             # ── PUBLISHING ──────────────────────────────────────────────────
