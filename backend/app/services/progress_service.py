@@ -81,6 +81,11 @@ class ProgressService:
                 {"id": uuid.uuid4(), "u": user_id, "c": concept_id, "v": gv, "now": datetime.now(timezone.utc)},
             )
 
+        # Force mastery threshold if passing a quiz, fulfilling the "Mark a concept mastered" spec.
+        if source == "QUIZ" and result.mastery < mastery_engine.MASTERY_THRESHOLD:
+            result.mastery = mastery_engine.MASTERY_THRESHOLD
+            result.routing = "unlock_dependents"
+
         # 5. Routing -> Node State
         if result.routing == "unlock_dependents":
             mastery_state = "MASTERED"
