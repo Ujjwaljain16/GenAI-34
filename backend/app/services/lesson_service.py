@@ -205,7 +205,11 @@ class LessonService:
         if out.follow_up_question:
             full_assistant_message += f"\n\n{out.follow_up_question}"
 
-        turn_index = len(turns)
+        # Re-fetch turns right before insert to avoid a 5-second race condition if 
+        # the user sends another message while the LLM was processing this one.
+        current_turns = await self.repo.get_turns(session_id)
+        turn_index = len(current_turns)
+
         await self.repo.create_turn(
             TutorInteraction(
                 lesson_session_id=sess.id,
