@@ -254,8 +254,8 @@ async def confirm_book_graph(
     )
     await session.execute(
         text("""
-            INSERT INTO user_concept_state (user_id, concept_id, graph_version, state)
-            SELECT :uid, c.id, c.graph_version,
+            INSERT INTO user_concept_state (id, user_id, concept_id, graph_version, state)
+            SELECT gen_random_uuid(), :uid, c.id, c.graph_version,
                    (CASE WHEN NOT EXISTS (
                         SELECT 1 FROM concept_edges e
                         WHERE e.to_concept_id = c.id
