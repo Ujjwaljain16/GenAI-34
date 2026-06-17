@@ -1,3 +1,12 @@
+---
+title: Lexis AI
+emoji: 🚀
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
 # Lexis AI
 
 Lexis AI is an adaptive educational platform that transforms static textbooks into interactive, personalized learning graphs. It ingests educational material, extracts topological knowledge dependencies, and utilizes spaced repetition (FSRS) and Socratic tutoring to dynamically generate adaptive curriculums based on real-time learner mastery.
@@ -427,3 +436,4 @@ For single-node VPS deployment, the provided `docker-compose.yml` serves as a pr
 # Acknowledgements
 
 Built with FastAPI, Next.js, Neo4j, PostgreSQL, and Google Gemini. Spaced repetition powered by the open-source FSRS algorithm.
+
