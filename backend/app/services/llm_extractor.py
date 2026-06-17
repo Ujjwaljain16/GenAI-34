@@ -44,6 +44,7 @@ class LLMExtractor:
         if defs is None and isinstance(schema_dict, dict):
             defs = schema_dict.pop("$defs", {})
         if isinstance(schema_dict, dict):
+            schema_dict.pop("title", None)  # Gemini API does not support 'title'
             if "$ref" in schema_dict:
                 ref_name = schema_dict["$ref"].split("/")[-1]
                 resolved = defs[ref_name].copy()
