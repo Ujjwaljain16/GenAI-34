@@ -18,19 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class LLMExtractor:
-    """
-    Interfaces with Gemini for concept and relationship extraction using structured outputs.
-    Includes explicit rate limiting and retries for strict free-tier limits.
-    """
-
-    def __init__(self, model_name: str = None):
-        from app.core.config import settings
-
-        self.api_key = settings.GEMINI_API_KEY
-        if not self.api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is missing.")
-
-        self.client = genai.Client(api_key=self.api_key)
+    def __init__(self, model_name: str | None = None):
         self.model_name = model_name or settings.GEMINI_MODEL or "gemini-2.5-flash-lite"
         self.prompts_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../prompts")
@@ -41,46 +29,17 @@ class LLMExtractor:
         with open(filepath, "r", encoding="utf-8") as f:
             return f.read()
 
-    def _resolve_refs(self, schema_dict: Any, defs: Any = None) -> Any:
-        if defs is None and isinstance(schema_dict, dict):
-            defs = schema_dict.pop("$defs", {})
-        if isinstance(schema_dict, dict):
-            schema_dict.pop("title", None)  # Gemini API does not support 'title'
-            if "$ref" in schema_dict:
-                ref_name = schema_dict["$ref"].split("/")[-1]
-                resolved = defs[ref_name].copy()
-                return self._resolve_refs(resolved, defs)
-            return {k: self._resolve_refs(v, defs) for k, v in schema_dict.items()}
-        elif isinstance(schema_dict, list):
-            return [self._resolve_refs(item, defs) for item in schema_dict]
-        return schema_dict
-
-    def _call_with_retry(self, prompt: str, schema: Any) -> Any:
-        """
-        Executes the API call with a guaranteed delay to enforce rate limits,
-        and exponential backoff for 429 Too Many Requests errors.
-        """
-        max_retries = 5
-        base_delay = 5.0  # Guaranteed minimum delay per call to respect RPM
-
-        # Bypass google-genai extra_forbidden on nested Pydantic schemas by inlining references
-        schema_dict = self._resolve_refs(schema.model_json_schema())
-
+    def _call_with_retry(self, prompt: str, schema: Any, max_retries: int = 5) -> Any:
         config = types.GenerateContentConfig(
             temperature=0.0,
             response_mime_type="application/json",
-            response_schema=schema_dict,
+            response_schema=schema,
         )
 
         for attempt in range(max_retries):
-            # Proactively sleep to avoid hitting the strict rate limit
-            logger.info(
-                f"Rate limiting: sleeping for {base_delay} seconds before calling Gemini..."
-            )
-            time.sleep(base_delay)
-
             try:
-                response = self.client.models.generate_content(
+                client = gemini_pool.get_client()
+                response = client.models.generate_content(
                     model=self.model_name, contents=prompt, config=config
                 )
                 try:
@@ -99,22 +58,21 @@ class LLMExtractor:
                     raise ValueError("Failed to parse structured output from model.")
             except Exception as e:
                 err_str = str(e)
-                if "429" in err_str or "quota" in err_str.lower():
-                    wait_time = 30 * (attempt + 1)
-                    logger.warning(
-                        f"Gemini quota exhausted (Attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s... Error: {e}"
-                    )
-                    if attempt == max_retries - 1:
-                        raise
-                    time.sleep(wait_time)
-                else:
-                    wait_time = 10 * (attempt + 1)
-                    logger.warning(
-                        f"Gemini API error (Attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s... Error: {e}"
-                    )
-                    if attempt == max_retries - 1:
-                        raise
-                    time.sleep(wait_time)
+                is_quota = "429" in err_str or "quota" in err_str.lower()
+                
+                if attempt == max_retries - 1:
+                    logger.error("Gemini call failed after %d attempts: %s", max_retries, e)
+                    raise
+                
+                if is_quota and len(gemini_pool.clients) > 1:
+                    gemini_pool.rotate()
+                    continue
+                
+                wait_time = (30 if is_quota else 10) * (attempt + 1)
+                logger.warning(
+                    f"Gemini error (Attempt {attempt + 1}/{max_retries}). Retrying in {wait_time}s... Error: {e}"
+                )
+                time.sleep(wait_time)
 
     def extract_concepts(self, text_chunk: str) -> ConceptExtractionResponse:
         prompt_template = self._load_prompt("concept_extraction.md")

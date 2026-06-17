@@ -25,6 +25,7 @@ from google import genai
 from google.genai import types
 
 from app.core.config import settings
+from app.core.llm_pool import gemini_pool
 from app.schemas.llm import (
     AssessmentQuestionOutput,
     AssessmentEvalOutput,
@@ -38,9 +39,6 @@ PROMPT_VERSION = "v1"
 
 class AssessmentLLM:
     def __init__(self, model_name: str | None = None):
-        if not settings.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is not configured.")
-        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model_name = model_name or settings.GEMINI_MODEL or "gemini-2.5-flash-lite"
         self.prompts_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../prompts")
@@ -50,35 +48,35 @@ class AssessmentLLM:
         with open(os.path.join(self.prompts_dir, filename), "r", encoding="utf-8") as f:
             return f.read()
 
-    def _call_sync(self, prompt: str, schema: Any, temperature: float) -> Any:
-        """Blocking Gemini call with light retry/backoff for the interactive path."""
+    def _call_sync(self, prompt: str, schema: Any, temperature: float, max_retries: int = 5) -> Any:
+        """Blocking Gemini call with rotation and backoff."""
         config = types.GenerateContentConfig(
             temperature=temperature,
             response_mime_type="application/json",
             response_schema=schema,
         )
-        max_retries = 3
         for attempt in range(max_retries):
             try:
-                response = self.client.models.generate_content(
+                client = gemini_pool.get_client()
+                response = client.models.generate_content(
                     model=self.model_name, contents=prompt, config=config
                 )
                 if response.parsed is None:
                     raise ValueError(f"Empty structured output. Raw: {response.text}")
                 return response.parsed
-            except Exception as e:  # noqa: BLE001 - surface after retries
-                err = str(e)
-                last = attempt == max_retries - 1
-                if last:
-                    logger.error(
-                        "Gemini call failed after %d attempts: %s", max_retries, err
-                    )
+            except Exception as e:
+                is_quota = "429" in str(e) or "quota" in str(e).lower()
+                if attempt == max_retries - 1:
+                    logger.error("Gemini call failed after %d attempts: %s", max_retries, e)
                     raise
-                wait = (20 if ("429" in err or "quota" in err.lower()) else 5) * (
-                    attempt + 1
-                )
+                
+                if is_quota and len(gemini_pool.clients) > 1:
+                    gemini_pool.rotate()
+                    continue
+                
+                wait = (20 if is_quota else 4) * (attempt + 1)
                 logger.warning(
-                    "Gemini error (attempt %d/%d), retrying in %ss: %s",
+                    "Gemini error (attempt %d/%d), retrying in %ds: %s",
                     attempt + 1,
                     max_retries,
                     wait,
