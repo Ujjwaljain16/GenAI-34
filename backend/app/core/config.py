@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # Gemini Config
     GEMINI_API_KEY: str
-    GEMINI_MODEL: str = "gemini-2.5-flash-lite"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # Storage Config
     # STORAGE_BACKEND selects the StorageProvider implementation ("local" | "s3"...).
