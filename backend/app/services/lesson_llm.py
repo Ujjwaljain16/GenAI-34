@@ -52,13 +52,16 @@ class LessonLLM:
                     raise ValueError(f"Empty structured output. Raw: {resp.text}")
                 return resp.parsed
             except Exception as e:  # noqa: BLE001
+                # Fail fast on rate limits. Sleeping during an active HTTP request
+                # causes the reverse proxy and DB connections to timeout and crash.
+                if "429" in str(e) or "quota" in str(e).lower():
+                    logger.error("LessonLLM rate limited, failing fast: %s", e)
+                    raise RuntimeError("LLM_RATE_LIMIT") from e
+                    
                 if attempt == 2:
                     logger.error("LessonLLM call failed: %s", e)
                     raise
-                wait = (20 if ("429" in str(e) or "quota" in str(e).lower()) else 4) * (
-                    attempt + 1
-                )
-                time.sleep(wait)
+                time.sleep(2)
 
     async def _call(self, prompt: str, schema: Any, temperature: float) -> Any:
         return await asyncio.to_thread(self._call_sync, prompt, schema, temperature)
