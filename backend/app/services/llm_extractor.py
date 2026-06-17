@@ -148,18 +148,13 @@ class LLMExtractor:
         return self._call_with_retry(prompt, MergedConceptCandidate)
 
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Fetch embeddings using Gemini's text-embedding-004 model."""
-        # Split into batches to avoid exceeding limits
-        batch_size = 50
-        all_embeddings = []
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            response = self.client.models.embed_content(
-                model="text-embedding-004", contents=batch
-            )
-            for emb in response.embeddings:
-                all_embeddings.append(emb.values)
-        return all_embeddings
+        """Fetch embeddings using local all-MiniLM-L6-v2 model."""
+        if not hasattr(self, "_embedding_model"):
+            from sentence_transformers import SentenceTransformer
+            self._embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+            
+        embeddings = self._embedding_model.encode(texts)
+        return embeddings.tolist()
 
     def judge_merge(
         self, concept_a: Dict[str, Any], concept_b: Dict[str, Any]
