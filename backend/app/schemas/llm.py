@@ -87,30 +87,25 @@ class AssessmentEvalOutput(BaseModel):
     )
 
 
-class DNAItem(BaseModel):
-    area: str = Field(description="Concept or topic area.")
-    evidence: str = Field(description="Concrete evidence from the assessment results.")
-
-
-class DNAMisconception(BaseModel):
-    category: str = Field(description="Short snake_case misconception category.")
-    evidence: str = Field(description="Evidence supporting this misconception.")
-
-
-class DNAFocusArea(BaseModel):
-    area: str = Field(description="Concept or topic to focus on next.")
-    reason: str = Field(
-        description="Why this area is recommended, grounded in evidence."
-    )
-
-
 class LearningDNAOutput(BaseModel):
     """Output of the learning_dna_generator prompt."""
 
-    strengths: List[DNAItem] = Field(default_factory=list)
-    weaknesses: List[DNAItem] = Field(default_factory=list)
-    misconceptions: List[DNAMisconception] = Field(default_factory=list)
-    recommended_focus_areas: List[DNAFocusArea] = Field(default_factory=list)
+    strengths: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="List of dicts with keys 'area' and 'evidence'."
+    )
+    weaknesses: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="List of dicts with keys 'area' and 'evidence'."
+    )
+    misconceptions: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="List of dicts with keys 'category' and 'evidence'."
+    )
+    recommended_focus_areas: List[Dict[str, str]] = Field(
+        default_factory=list,
+        description="List of dicts with keys 'area' and 'reason'."
+    )
     confidence_profile: str = Field(
         default="", description="Narrative summary of confidence calibration."
     )
