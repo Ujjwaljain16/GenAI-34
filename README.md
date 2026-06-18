@@ -195,13 +195,15 @@ The system utilizes a modular monolith Backend supported by asynchronous worker 
 │   ├── db/                   # Raw SQL schema definition (schema.sql)
 │   ├── evals/                # Golden datasets and prompt evaluations
 │   ├── migrations/           # Alembic migration scripts
-│   └── tests/                # Unit and integration test suites
+│   ├── tests/                # Unit and integration test suites
+│   └── start.py              # Main startup script for uvicorn & workers
 ├── docs/                     # TRDs, Architecture, OpenAPI specs
 ├── frontend/                 # Next.js Application
 │   ├── src/
 │   │   ├── app/              # App router pages
 │   │   ├── components/       # Shared UI components
 │   │   └── lib/              # API clients, utilities, types
+├── Dockerfile                # Root Dockerfile for Hugging Face Spaces
 ├── docker-compose.yml        # Orchestration topology
 └── PROJECT_STATUS.md         # Handover status and release checklist
 ```
