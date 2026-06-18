@@ -1,153 +1,338 @@
-"use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { BrainCircuit, Eye, EyeOff, Loader2 } from "lucide-react";
+import Link from "next/link";
+import {
+  BrainCircuit, Upload, GitBranch, Target, BookOpen, Flame, TrendingUp,
+  Trophy, MessageSquareText, RotateCcw, ArrowRight, CheckCircle2, Star,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { LandingNavbar } from "@/components/LandingNavbar";
+import { LandingFooter } from "@/components/LandingFooter";
 
-export default function AuthPage() {
-  const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [showPw, setShowPw] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const features = [
+  {
+    icon: GitBranch,
+    iconBg: "bg-indigo-100",
+    iconColor: "text-indigo-600",
+    title: "Knowledge Graphs",
+    description:
+      "Lexis breaks any book into concepts and prerequisites, mapping exactly what depends on what — so you never study out of order.",
+  },
+  {
+    icon: Target,
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+    title: "Adaptive Assessment",
+    description:
+      "A quick diagnostic finds what you already know and routes you straight to your real knowledge gaps, skipping what you've mastered.",
+  },
+  {
+    icon: MessageSquareText,
+    iconBg: "bg-emerald-100",
+    iconColor: "text-emerald-600",
+    title: "Socratic Tutoring",
+    description:
+      "Learn through guided questioning anchored strictly to the book's own text — never generic, never off-topic.",
+  },
+  {
+    icon: RotateCcw,
+    iconBg: "bg-orange-100",
+    iconColor: "text-orange-600",
+    title: "Spaced Repetition (FSRS)",
+    description:
+      "A research-backed scheduler resurfaces concepts right before you'd forget them, building durable, long-term retention.",
+  },
+  {
+    icon: BookOpen,
+    iconBg: "bg-purple-100",
+    iconColor: "text-purple-600",
+    title: "Any Book, Any Format",
+    description:
+      "Upload PDF, EPUB, or TXT files and Lexis turns static chapters into an interactive, personalized curriculum.",
+  },
+  {
+    icon: Flame,
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-600",
+    title: "Streaks & Progress Tracking",
+    description:
+      "Daily streaks, mastery rings, and retention charts keep you motivated and show your growth at a glance.",
+  },
+];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+const steps = [
+  {
+    number: "1",
+    icon: Upload,
+    title: "Upload your book",
+    description:
+      "Drop in a PDF, EPUB, or TXT file. Lexis parses it and extracts a knowledge graph of concepts and dependencies.",
+  },
+  {
+    number: "2",
+    icon: Target,
+    title: "Take the diagnostic",
+    description:
+      "A short adaptive assessment measures your baseline mastery across the graph — no wasted time on what you know.",
+  },
+  {
+    number: "3",
+    icon: TrendingUp,
+    title: "Learn & retain daily",
+    description:
+      "Follow your personalized curriculum, tutor concept-by-concept, and let spaced repetition lock in retention.",
+  },
+];
 
-    try {
-      if (mode === "signup") {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-        const data = await res.json();
-        if (!res.ok) { setError(typeof data.error === "string" ? data.error : data.error?.message ?? "Registration failed"); setLoading(false); return; }
-      }
+const benefits = [
+  "Never study a prerequisite gap by accident again",
+  "Spend time only on concepts you haven't mastered",
+  "Retain what you learn with science-backed spaced repetition",
+  "Get Socratic guidance anchored to the actual book text",
+  "Track mastery, streaks, and retention in one dashboard",
+  "Works with any PDF, EPUB, or TXT — your books, your pace",
+];
 
-      const result = await signIn("credentials", {
-        email: form.email,
-        password: form.password,
-        redirect: false,
-      });
+const stats = [
+  { label: "Concepts mapped per book", value: "100s", icon: GitBranch },
+  { label: "Retention improvement focus", value: "FSRS", icon: RotateCcw },
+  { label: "Built for", value: "Every learner", icon: Trophy },
+];
 
-      if (result?.error) {
-        setError("Invalid email or password");
-        setLoading(false);
-        return;
-      }
-
-      router.push("/library");
-    } catch {
-      setError("Something went wrong. Please try again.");
-      setLoading(false);
-    }
-  };
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo + Tagline */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+    <div className="min-h-screen bg-slate-50">
+      <LandingNavbar />
+
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-indigo-50 via-white to-slate-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-6 shadow-lg">
             <BrainCircuit className="h-9 w-9 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900">Lexis</h1>
-          <p className="text-slate-500 mt-1">Learn any book deeply — one concept at a time.</p>
+
+          <Badge variant="info" className="mb-4">Adaptive learning, reimagined</Badge>
+
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight max-w-3xl mx-auto">
+            Learn any book deeply — one concept at a time
+          </h1>
+
+          <p className="text-lg text-slate-500 mt-6 max-w-2xl mx-auto">
+            Lexis turns static textbooks into interactive, personalized learning graphs.
+            Upload a book, get assessed, and follow an adaptive curriculum built on
+            knowledge graphs, Socratic tutoring, and spaced repetition.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
+            <Button asChild size="lg" className="px-8">
+              <Link href="/login">
+                Get Started
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="px-8">
+              <a href="#how-it-works">
+                See how it works
+              </a>
+            </Button>
+          </div>
+
+          <p className="text-xs text-slate-400 mt-6">
+            Free to start. No credit card required.
+          </p>
         </div>
+      </section>
 
-        <Card className="shadow-lg border-slate-200">
-          <CardHeader className="pb-4">
-            {/* Mode toggle */}
-            <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
-              <button
-                onClick={() => { setMode("signin"); setError(""); }}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === "signin" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                Sign in
-              </button>
-              <button
-                onClick={() => { setMode("signup"); setError(""); }}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === "signup" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                Create account
-              </button>
-            </div>
-          </CardHeader>
+      {/* Features Section */}
+      <section id="features" className="py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-3xl font-bold text-slate-900">
+              Everything you need to actually learn
+            </h2>
+            <p className="text-slate-500 mt-3">
+              Not another e-reader. Lexis is a full learning engine built around how
+              memory and understanding actually work.
+            </p>
+          </div>
 
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === "signup" && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full name</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="Your name"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-              )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {features.map((f) => (
+              <Card key={f.title} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className={`h-10 w-10 ${f.iconBg} rounded-xl flex items-center justify-center mb-4`}>
+                    <f.icon className={`h-5 w-5 ${f.iconColor}`} />
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">{f.title}</h3>
+                  <p className="text-sm text-slate-500">{f.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="you@example.com"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-20 bg-white border-y border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-3xl font-bold text-slate-900">How it works</h2>
+            <p className="text-slate-500 mt-3">
+              Three steps from a raw book file to a personalized, retained curriculum.
+            </p>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPw ? "text" : "password"}
-                    required
-                    minLength={6}
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="••••••••"
-                    className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                  <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {mode === "signin" && (
-                  <button type="button" className="text-xs text-indigo-600 hover:underline mt-1 block">
-                    Forgot password?
-                  </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {steps.map((s, i) => (
+              <div key={s.number} className="relative">
+                <Card className="h-full">
+                  <CardContent className="p-6 flex flex-col items-center text-center">
+                    <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                      <s.icon className="h-6 w-6 text-white" />
+                    </div>
+                    <Badge variant="secondary" className="mb-3">Step {s.number}</Badge>
+                    <h3 className="font-semibold text-slate-900 mb-2">{s.title}</h3>
+                    <p className="text-sm text-slate-500">{s.description}</p>
+                  </CardContent>
+                </Card>
+                {i < steps.length - 1 && (
+                  <div className="hidden sm:flex absolute top-1/2 -right-3 -translate-y-1/2 z-10">
+                    <ArrowRight className="h-5 w-5 text-slate-300" />
+                  </div>
                 )}
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">
-                  {error}
-                </div>
-              )}
+      {/* Benefits Section */}
+      <section id="benefits" className="py-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">
+                Why learners choose Lexis
+              </h2>
+              <p className="text-slate-500 mb-8">
+                Traditional textbooks assume every reader starts at the same place
+                and learns at the same speed. Lexis adapts to you instead.
+              </p>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> {mode === "signup" ? "Creating account..." : "Signing in..."}</> : (mode === "signup" ? "Create account" : "Sign in")}
+              <ul className="space-y-3">
+                {benefits.map((b) => (
+                  <li key={b} className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                    <span className="text-sm text-slate-700">{b}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button asChild size="lg" className="inline-block mt-8">
+                <Link href="/login">
+                  Get Started
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </Button>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
-          By continuing, you agree to our Terms of Service and Privacy Policy.
-        </p>
-      </div>
+            {/* Visual / stats card */}
+            <Card className="overflow-hidden">
+              <div className="h-40 bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center">
+                <BrainCircuit className="h-14 w-14 text-white/80" />
+              </div>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 gap-4">
+                  {stats.map((s) => (
+                    <div key={s.label} className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                        <s.icon className="h-5 w-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-slate-900">{s.value}</p>
+                        <p className="text-xs text-slate-500">{s.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20 bg-white border-y border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <h2 className="text-3xl font-bold text-slate-900">Built for focused learners</h2>
+            <p className="text-slate-500 mt-3">
+              Early feedback from people using Lexis to work through dense material.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              {
+                quote:
+                  "The knowledge graph approach finally explained why I kept getting lost in advanced chapters — I was missing prerequisites I didn't know existed.",
+                name: "Graduate researcher",
+                role: "Computer Science",
+              },
+              {
+                quote:
+                  "Spaced repetition combined with the Socratic tutor made dense technical material actually stick instead of fading after a week.",
+                name: "Self-taught engineer",
+                role: "Backend development",
+              },
+              {
+                quote:
+                  "Being routed straight to my actual gaps instead of re-reading chapters I already understood saved a huge amount of time.",
+                name: "Lifelong learner",
+                role: "Independent study",
+              },
+            ].map((t) => (
+              <Card key={t.name}>
+                <CardContent className="p-6">
+                  <div className="flex gap-0.5 mb-3">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <Star key={idx} className="h-4 w-4 text-amber-400 fill-amber-400" />
+                    ))}
+                  </div>
+                  <p className="text-sm text-slate-600 mb-4">&ldquo;{t.quote}&rdquo;</p>
+                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.role}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="bg-indigo-600 border-indigo-600 overflow-hidden">
+            <CardContent className="p-10 sm:p-12 text-center">
+              <h2 className="text-3xl font-bold text-white mb-3">
+                Ready to learn smarter?
+              </h2>
+              <p className="text-indigo-100 mb-8 max-w-xl mx-auto">
+                Upload your first book and let Lexis build your personalized
+                knowledge graph in minutes.
+              </p>
+              <Button asChild size="lg" variant="secondary" className="px-8">
+                <Link href="/login">
+                  Get Started
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <LandingFooter />
     </div>
   );
 }
