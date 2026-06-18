@@ -39,12 +39,12 @@ export function LandingNavbar() {
 
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">Sign in</Button>
-          </Link>
-          <Link href="/login">
-            <Button size="sm">Get Started</Button>
-          </Link>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/login">Sign in</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/login">Get Started</Link>
+          </Button>
         </div>
 
         {/* Mobile menu toggle */}
@@ -52,6 +52,8 @@ export function LandingNavbar() {
           onClick={() => setOpen((v) => !v)}
           className="md:hidden p-2 text-slate-600 hover:text-slate-900"
           aria-label="Toggle menu"
+          aria-expanded={open}
+          aria-controls="landing-mobile-menu"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -59,7 +61,7 @@ export function LandingNavbar() {
 
       {/* Mobile menu panel */}
       {open && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 sm:px-6 py-4 space-y-3">
+        <div id="landing-mobile-menu" className="md:hidden border-t border-slate-200 bg-white px-4 sm:px-6 py-4 space-y-3">
           {links.map((l) => (
             <a
               key={l.href}
@@ -71,12 +73,12 @@ export function LandingNavbar() {
             </a>
           ))}
           <div className="flex flex-col gap-2 pt-2">
-            <Link href="/login" onClick={() => setOpen(false)}>
-              <Button variant="outline" className="w-full">Sign in</Button>
-            </Link>
-            <Link href="/login" onClick={() => setOpen(false)}>
-              <Button className="w-full">Get Started</Button>
-            </Link>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/login" onClick={() => setOpen(false)}>Sign in</Link>
+            </Button>
+            <Button asChild className="w-full">
+              <Link href="/login" onClick={() => setOpen(false)}>Get Started</Link>
+            </Button>
           </div>
         </div>
       )}

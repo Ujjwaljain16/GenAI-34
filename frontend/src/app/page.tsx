@@ -124,17 +124,17 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-10">
-            <Link href="/login">
-              <Button size="lg" className="px-8">
+            <Button asChild size="lg" className="px-8">
+              <Link href="/login">
                 Get Started
                 <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <a href="#how-it-works">
-              <Button size="lg" variant="outline" className="px-8">
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="px-8">
+              <a href="#how-it-works">
                 See how it works
-              </Button>
-            </a>
+              </a>
+            </Button>
           </div>
 
           <p className="text-xs text-slate-400 mt-6">
@@ -228,12 +228,12 @@ export default function LandingPage() {
                 ))}
               </ul>
 
-              <Link href="/login" className="inline-block mt-8">
-                <Button size="lg">
+              <Button asChild size="lg" className="inline-block mt-8">
+                <Link href="/login">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
 
             {/* Visual / stats card */}
@@ -321,12 +321,12 @@ export default function LandingPage() {
                 Upload your first book and let Lexis build your personalized
                 knowledge graph in minutes.
               </p>
-              <Link href="/login">
-                <Button size="lg" variant="secondary" className="px-8">
+              <Button asChild size="lg" variant="secondary" className="px-8">
+                <Link href="/login">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
