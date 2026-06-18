@@ -221,8 +221,14 @@ async def sync_graph_to_neo4j(
     ]
     in_progress = [cid for cid, st in states.items() if st == "IN_PROGRESS"]
 
-    book_ok = await project_book_graph(book_id, concept_dicts, edge_tuples)
-    user_ok = await project_user_state(user_id, mastery_rows, in_progress)
+    try:
+        book_ok = await project_book_graph(book_id, concept_dicts, edge_tuples)
+        user_ok = await project_user_state(user_id, mastery_rows, in_progress)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Neo4j projection failed: {e}")
+        raise HTTPException(status_code=503, detail="Graph projection service is temporarily unavailable.")
+
     return {
         "bookProjected": book_ok,
         "userProjected": user_ok,

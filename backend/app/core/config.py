@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     KEEP_SOURCE_FILE: bool = False
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
+        env_file=(".env.test", ".env"), env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )
 
 

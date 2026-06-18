@@ -316,6 +316,7 @@ class LessonService:
         sess = await self._load_session_owned(user_id, session_id)
         concept = await self.repo.get_concept(str(sess.concept_id))
         eng = self._assessment()
+        progress = ProgressService(self.graph, self.assess)
 
         items, scores = [], []
         for r in responses:
@@ -326,6 +327,12 @@ class LessonService:
             is_correct, correctness, score, feedback = await eng._grade(
                 question, concept, r.answer, ak
             )
+            
+            # Register individual question mastery for Spaced Repetition tracking
+            await progress.record_review(
+                user_id, str(concept.book_id), str(concept.id), grade=3 if is_correct else 1
+            )
+            
             scores.append(score)
             items.append(
                 QuizResultItemDTO(
@@ -342,7 +349,6 @@ class LessonService:
         if passed:
             sess.status = "COMPLETED"
             sess.completed_at = datetime.now(timezone.utc)
-            progress = ProgressService(self.graph, self.assess)
             unlocked = await progress.complete_concept(
                 user_id, str(concept.book_id), str(concept.id), source="QUIZ"
             )
