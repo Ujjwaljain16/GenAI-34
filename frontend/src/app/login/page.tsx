@@ -5,6 +5,20 @@ import { signIn } from "next-auth/react";
 import { BrainCircuit, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { z } from "zod";
+
+const authSchema = z.object({
+  name: z.string().optional(),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const errorResponseSchema = z.object({
+  error: z.union([
+    z.string(),
+    z.object({ message: z.string() }).passthrough()
+  ]).optional()
+}).passthrough();
 
 export default function AuthPage() {
   const router = useRouter();
@@ -20,19 +34,44 @@ export default function AuthPage() {
     setError("");
 
     try {
+      const parsedForm = authSchema.safeParse(form);
+      if (!parsedForm.success) {
+        setError(parsedForm.error.errors[0].message);
+        setLoading(false);
+        return;
+      }
+      const validatedForm = parsedForm.data;
+
       if (mode === "signup") {
+        if (!validatedForm.name || validatedForm.name.trim() === "") {
+          setError("Name is required");
+          setLoading(false);
+          return;
+        }
+
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(validatedForm),
         });
-        const data = await res.json();
-        if (!res.ok) { setError(typeof data.error === "string" ? data.error : data.error?.message ?? "Registration failed"); setLoading(false); return; }
+        const rawData = await res.json();
+        
+        if (!res.ok) {
+          const parsedData = errorResponseSchema.safeParse(rawData);
+          if (parsedData.success) {
+            const errField = parsedData.data.error;
+            setError(typeof errField === "string" ? errField : errField?.message ?? "Registration failed");
+          } else {
+            setError("Registration failed");
+          }
+          setLoading(false);
+          return;
+        }
       }
 
       const result = await signIn("credentials", {
-        email: form.email,
-        password: form.password,
+        email: validatedForm.email,
+        password: validatedForm.password,
         redirect: false,
       });
 
