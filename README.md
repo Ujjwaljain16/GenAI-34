@@ -173,7 +173,7 @@ The system utilizes a modular monolith Backend supported by asynchronous worker 
 | **Database** | PostgreSQL | System of Record for all relational and transactional data |
 | **ORM** | SQLAlchemy (Async) | Database access and migration schema modeling |
 | **Graph DB** | Neo4j | Runtime graph engine for topological DAG traversals |
-| **LLM Engine** | Google Gemini 2.5 Flash | Concept extraction, assessments, and tutor dialogue |
+| **LLM Engine** | Google Gemini | Concept extraction, assessments, and tutor dialogue. Features a round-robin API key pool to mitigate free-tier rate limits. |
 | **Infrastructure**| Docker, Docker Compose | Containerization and deterministic orchestration |
 
 ---
@@ -348,8 +348,11 @@ curl http://localhost:8000/api/v1/health
 | `NEO4J_URI` | Yes | Bolt URI for Neo4j database |
 | `NEO4J_USER` | Yes | Neo4j cluster username |
 | `NEO4J_PASSWORD` | Yes | Neo4j cluster password |
-| `JWT_SECRET` | Yes | Secret key for signing Auth tokens |
-| `GEMINI_API_KEY` | Yes | Google Gemini LLM API token |
+| `JWT_SECRET` | Yes | Secret key for signing Auth tokens (Backend) |
+| `NEXTAUTH_SECRET` | Yes | Secret key for NextAuth sessions (Frontend) |
+| `NEXT_PUBLIC_API_URL` | Yes | Absolute URL to the FastAPI backend (e.g., `http://localhost:8000/api/v1`) |
+| `GEMINI_API_KEY` | Yes | Google Gemini API token. Supports comma-separated keys for load-balancing (`key1,key2`). |
+| `GEMINI_MODEL` | No | Gemini Model name (defaults to `gemini-2.5-flash`) |
 | `ENVIRONMENT` | No | `development` or `production` |
 
 ---
@@ -379,7 +382,7 @@ python -m evals.run_evals
 **Current Deployment Topology**:
 - **Backend API & Workers**: Hugging Face Spaces (Docker Space utilizing the root `Dockerfile`, exposing port 7860).
 - **Frontend**: Vercel (Next.js serverless deployment).
-- **Database (Postgres)**: Cloud PostgreSQL (e.g., Supabase, Neon, or AWS RDS).
+- **Database (Postgres)**: Cloud PostgreSQL (Neon).
 - **Graph Engine (Neo4j)**: Neo4j AuraDB (Cloud managed).
 
 The root `Dockerfile` is strictly configured for Hugging Face Spaces deployment. It securely boots the FastAPI server and the asynchronous ingestion worker on port `7860` as required by HF standards. For local or VPS deployment, the provided `docker-compose.yml` serves as a production-ready baseline.
@@ -409,7 +412,7 @@ The root `Dockerfile` is strictly configured for Hugging Face Spaces deployment.
 
 # Known Limitations
 
-- **File Storage Constraints**: Uploads currently utilize a stateful `LocalStorageProvider` written to the container's `/uploads` directory. A container restart will lose pending unprocessed PDFs. S3 integration is required.
+- **File Storage Constraints**: Uploads currently utilize a stateful `LocalStorageProvider` written to the container's `/uploads` directory. Because Hugging Face Spaces run ephemerally, a container restart or sleep will wipe all pending unprocessed PDFs. S3 integration is required for true production durability.
 - **Observability Deficit**: Lack of `structlog` and APM integration makes tracing distributed LLM latency difficult.
 - **Gemini Costs**: Real-time interactions in the Socratic Tutor are synchronous API calls, subject to latency spikes and quota exhaustion on free tiers.
 
