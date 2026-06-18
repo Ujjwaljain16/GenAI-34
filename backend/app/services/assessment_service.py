@@ -319,7 +319,17 @@ class AssessmentService:
                 chosen = int(str(answer).strip())
             except (TypeError, ValueError):
                 chosen = -1
-            is_correct = correct_idx is not None and chosen == int(correct_idx)
+                
+            if correct_idx is not None:
+                is_correct = chosen == int(correct_idx)
+            else:
+                options = ak.get("options", [])
+                selected_text = ""
+                if 0 <= chosen < len(options):
+                    selected_text = str(options[chosen]).strip().lower()
+                expected = str(ak.get("expected_answer", "")).strip().lower()
+                is_correct = bool(expected and selected_text and (selected_text == expected or selected_text in expected or expected in selected_text))
+                
             return (
                 is_correct,
                 "correct" if is_correct else "incorrect",

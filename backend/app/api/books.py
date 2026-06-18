@@ -616,7 +616,7 @@ async def graph_chat_edit(
     AI output is suggestion-only — user must confirm before any mutation
     endpoint is called. (CR: AI never updates graph state directly.)
     """
-    from google import genai
+    from app.core.llm_pool import gemini_pool
 
     await _assert_owned(session, user_id, book_id)
     # CR: resolve active graph_version once; scope all reads to it
@@ -651,10 +651,8 @@ async def graph_chat_edit(
         message=body.message,
     )
 
-    # CR: use settings.GEMINI_MODEL (not hardcoded string)
-    # CR: offload blocking call to thread (matches LessonLLM/AssessmentLLM pattern)
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    model = settings.GEMINI_MODEL
+    client = gemini_pool.get_client()
+    model = gemini_pool.model_name
 
     def _call_gemini() -> str:
         response = client.models.generate_content(model=model, contents=prompt)
