@@ -41,7 +41,7 @@ export default function LibraryPage() {
   const [sort, setSort]                 = useState<"recent" | "due" | "alpha">("recent");
 
   useEffect(() => {
-    if (status === "unauthenticated") { router.push("/"); return; }
+    if (status === "unauthenticated") { router.push("/login"); return; }
     if (status !== "authenticated") return;
 
     const token = getToken(session);
@@ -60,7 +60,7 @@ export default function LibraryPage() {
         setLoading(false);
       })
       .catch((err: ApiError) => {
-        if (err.status === 401) { router.push("/"); return; }
+        if (err.status === 401) { router.push("/login"); return; }
         setError("Failed to load library. Is the backend running?");
         setLoading(false);
       });

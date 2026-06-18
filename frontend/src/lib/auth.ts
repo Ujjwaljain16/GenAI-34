@@ -77,10 +77,10 @@ export const authOptions: NextAuthOptions = {
   },
 
   pages: {
-    signIn: "/",          // redirect unauthenticated users here
-    error: "/",           // auth errors go back to landing page
+    signIn: "/login",     // redirect unauthenticated users here
+    error: "/login",      // auth errors go back to the sign-in page
   },
-
+  
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 24 * 7, // 7 days — matches typical FastAPI token expiry
