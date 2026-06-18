@@ -74,19 +74,19 @@ FSRS Spaced Repetition (Retention Tracking)
 - **Key Technologies**: Gemini 2.5 Flash, Postgres.
 - **Current Status**: Implemented. Uses batching and resumable checkpoints (`raw_concepts` table lineage).
 
-## Graph Validation
-- **Purpose**: Ensures the generated knowledge graph is a valid Directed Acyclic Graph (DAG) for traversal.
-- **Inputs**: Candidate relationships.
-- **Outputs**: Validated graph with cycle-breaking repair.
-- **Key Technologies**: Kahn's Algorithm.
-- **Current Status**: Implemented. Formally detects and resolves cyclic dependencies.
+## Graph Validation & Interactive Editing
+- **Purpose**: Ensures the generated knowledge graph is a valid Directed Acyclic Graph (DAG) and allows users to modify the topology interactively via a natural language chat interface.
+- **Inputs**: Candidate relationships, user natural language edit requests.
+- **Outputs**: Validated graph with cycle-breaking repair, and AI-proposed schema mutations.
+- **Key Technologies**: Kahn's Algorithm, Gemini tool-calling (suggestion extraction).
+- **Current Status**: Implemented. Formally detects cyclic dependencies and supports conversational modifications (deleting nodes, rerouting edges) via the `graph_chat_edit` endpoint.
 
 ## Adaptive Assessment
 - **Purpose**: Calibrates the learner's baseline knowledge.
 - **Inputs**: Graph topology, learner responses.
 - **Outputs**: `LearningDNA` baseline, seeded `ConceptMastery` scores.
 - **Key Technologies**: Gemini.
-- **Current Status**: Implemented. Traverses the DAG dynamically based on right/wrong answers.
+- **Current Status**: Implemented. Traverses the DAG dynamically based on right/wrong answers, featuring robust LLM-fallback grading that resolves omitted structured JSON fields safely.
 
 ## Mastery Tracking
 - **Purpose**: Maintains the true cognitive state of the learner per concept.
@@ -107,7 +107,7 @@ FSRS Spaced Repetition (Retention Tracking)
 - **Inputs**: Source chunks, user queries, concept context.
 - **Outputs**: Interrogative hints and guided explanations.
 - **Key Technologies**: Gemini 2.5 Flash, RAG.
-- **Current Status**: Implemented. Employs 4-level hint generation and persistent sessions.
+- **Current Status**: Implemented. Employs 4-level hint generation and persistent sessions. It dynamically balances Socratic questioning with brief, direct explanations when the learner is struggling.
 
 ## FSRS Spaced Repetition
 - **Purpose**: Schedules reviews to interrupt the forgetting curve.
@@ -315,7 +315,7 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # or .\venv\Scripts\activate on Windows
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python start.py
 ```
 
 **Frontend Startup**
