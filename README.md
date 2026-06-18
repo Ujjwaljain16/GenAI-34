@@ -11,6 +11,8 @@ pinned: false
 
 Lexis AI is an adaptive educational platform that transforms static textbooks into interactive, personalized learning graphs. It ingests educational material, extracts topological knowledge dependencies, and utilizes spaced repetition (FSRS) and Socratic tutoring to dynamically generate adaptive curriculums based on real-time learner mastery.
 
+![Lexis AI Demo](./demolexis-ai-hq.gif)
+
 ---
 
 # Problem Statement
