@@ -25,7 +25,7 @@ export default function ProgressPage() {
   const [error, setError]       = useState("");
 
   useEffect(() => {
-    if (status === "unauthenticated") { router.push("/"); return; }
+    if (status === "unauthenticated") { router.push("/login"); return; }
     if (status !== "authenticated") return;
 
     const token = getToken(session);

@@ -4,7 +4,7 @@ import { SessionProvider } from "@/components/SessionProvider";
 
 export const metadata: Metadata = {
   title: "Lexis — Adaptive Book Learning",
-  description: "Learn any book with AI-powered spaced repetition and Socratic tutoring.",
+  description: "Learn any book deeply with AI-powered knowledge graphs, spaced repetition, and Socratic tutoring.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
