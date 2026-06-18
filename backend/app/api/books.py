@@ -699,13 +699,13 @@ async def get_user_books(
             SELECT 
                 b.id as book_id,
                 COUNT(DISTINCT c.id) as total_nodes,
-                COUNT(DISTINCT CASE WHEN ucs.state = 'MASTERED' OR ucm.mastery >= 0.8 THEN c.id END) as mastered_nodes
+                COUNT(DISTINCT CASE WHEN ucs.state = 'MASTERED' OR cm.mastery_score >= 0.8 THEN c.id END) as mastered_nodes
             FROM books b
             JOIN user_books ub ON ub.book_id = b.id AND ub.user_id = :uid
             LEFT JOIN concepts c ON c.book_id = b.id 
                 AND c.graph_version = (SELECT MAX(graph_version) FROM concepts WHERE book_id = b.id)
             LEFT JOIN user_concept_state ucs ON ucs.concept_id = c.id AND ucs.user_id = :uid
-            LEFT JOIN user_concept_mastery ucm ON ucm.concept_id = c.id AND ucm.user_id = :uid
+            LEFT JOIN concept_mastery cm ON cm.concept_id = c.id AND cm.user_id = :uid
             WHERE b.id = ANY(:bids)
             GROUP BY b.id
         """),
