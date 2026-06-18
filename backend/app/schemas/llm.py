@@ -54,9 +54,9 @@ class AssessmentQuestionOutput(BaseModel):
         default_factory=list,
         description="Exactly 4 options for MCQ; empty array otherwise.",
     )
-    correct_option: int = Field(
-        default=-1,
-        description="0-based index of the correct MCQ option; -1 when not MCQ.",
+    correct_option: Optional[int] = Field(
+        default=None,
+        description="0-based index of the correct MCQ option; null when not MCQ.",
     )
     expected_answer: str = Field(
         description="Model answer. For MCQ, the text of the correct option."
