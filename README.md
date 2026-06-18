@@ -376,13 +376,13 @@ python -m evals.run_evals
 
 # Deployment
 
-**Current Recommended Deployment Topology**:
-- **Frontend**: Vercel (Next.js standalone build).
-- **Backend API**: Render or Railway (Docker container deployment).
-- **Database (Postgres)**: Supabase or AWS RDS.
+**Current Deployment Topology**:
+- **Backend API & Workers**: Hugging Face Spaces (Docker Space utilizing the root `Dockerfile`, exposing port 7860).
+- **Frontend**: Vercel (Next.js serverless deployment).
+- **Database (Postgres)**: Cloud PostgreSQL (e.g., Supabase, Neon, or AWS RDS).
 - **Graph Engine (Neo4j)**: Neo4j AuraDB (Cloud managed).
 
-For single-node VPS deployment, the provided `docker-compose.yml` serves as a production-ready baseline.
+The root `Dockerfile` is strictly configured for Hugging Face Spaces deployment. It securely boots the FastAPI server and the asynchronous ingestion worker on port `7860` as required by HF standards. For local or VPS deployment, the provided `docker-compose.yml` serves as a production-ready baseline.
 
 ---
 
