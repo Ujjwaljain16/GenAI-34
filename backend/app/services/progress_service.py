@@ -148,6 +148,17 @@ class ProgressService:
                 fsrs_engine.init_state(), fsrs_engine.GRADE_GOOD
             )
             await self.fsrs.upsert_state(user_id, concept_id, state, interval)
+
+        # Invalidate cached curriculum and daily plans so the dashboard reflects the new mastery state.
+        await self.graph.session.execute(
+            text("DELETE FROM curriculum_plans WHERE user_id = :u AND book_id = :b"),
+            {"u": user_id, "b": book_id}
+        )
+        await self.graph.session.execute(
+            text("DELETE FROM daily_plans WHERE user_id = :u AND book_id = :b"),
+            {"u": user_id, "b": book_id}
+        )
+
         return unlocked
 
     async def record_review(
@@ -210,6 +221,16 @@ class ProgressService:
         # Node state updated based on routing.
         if gv is not None:
             await self.repo.upsert_node_state(user_id, concept_id, gv, node_state)
+
+        # Invalidate cached curriculum and daily plans so the dashboard reflects the new mastery state.
+        await self.graph.session.execute(
+            text("DELETE FROM curriculum_plans WHERE user_id = :u AND book_id = :b"),
+            {"u": user_id, "b": book_id}
+        )
+        await self.graph.session.execute(
+            text("DELETE FROM daily_plans WHERE user_id = :u AND book_id = :b"),
+            {"u": user_id, "b": book_id}
+        )
 
         return {
             "concept_id": concept_id,

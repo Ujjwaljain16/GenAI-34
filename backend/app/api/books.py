@@ -691,11 +691,40 @@ async def get_user_books(
 ):
     service = BookService(BookRepository(session))
     books = await service.book_repo.get_books_by_user(user_id)
+    
+    # Query to fetch total and mastered concepts per book dynamically.
+    # Note: A node is mastered if its state is 'MASTERED' or mastery >= 0.8
+    stats_query = await session.execute(
+        text("""
+            SELECT 
+                b.id as book_id,
+                COUNT(DISTINCT c.id) as total_nodes,
+                COUNT(DISTINCT CASE WHEN ucs.state = 'MASTERED' OR ucm.mastery >= 0.8 THEN c.id END) as mastered_nodes
+            FROM books b
+            JOIN user_books ub ON ub.book_id = b.id AND ub.user_id = :uid
+            LEFT JOIN concepts c ON c.book_id = b.id 
+                AND c.graph_version = (SELECT MAX(graph_version) FROM concepts WHERE book_id = b.id)
+            LEFT JOIN user_concept_state ucs ON ucs.concept_id = c.id AND ucs.user_id = :uid
+            LEFT JOIN user_concept_mastery ucm ON ucm.concept_id = c.id AND ucm.user_id = :uid
+            WHERE b.id = ANY(:bids)
+            GROUP BY b.id
+        """),
+        {"uid": user_id, "bids": [str(b.id) for b in books]}
+    )
+    
+    stats = {row.book_id: {"total": row.total_nodes, "mastered": row.mastered_nodes} for row in stats_query.fetchall()}
+
     summaries = []
     for b in books:
         status_str = getattr(b, "status", "UPLOADING").lower()
         if status_str == "uploading":
             status_str = "uploaded"
+            
+        book_stats = stats.get(str(b.id), {"total": 0, "mastered": 0})
+        total = book_stats["total"]
+        mastered = book_stats["mastered"]
+        progress_pct = round((mastered / total) * 100) if total > 0 else 0
+        
         summaries.append(
             BookSummaryDTO(
                 id=str(b.id),
@@ -703,9 +732,9 @@ async def get_user_books(
                 author=b.author,
                 coverUrl=None,
                 status=status_str,
-                progress=0,
-                totalNodes=0,
-                masteredNodes=0,
+                progress=progress_pct,
+                totalNodes=total,
+                masteredNodes=mastered,
                 dueToday=0,
                 lastStudied=None,
                 createdAt=b.created_at.isoformat(),
