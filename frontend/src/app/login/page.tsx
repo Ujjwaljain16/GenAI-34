@@ -36,7 +36,7 @@ export default function AuthPage() {
     try {
       const parsedForm = authSchema.safeParse(form);
       if (!parsedForm.success) {
-        setError(parsedForm.error.errors[0].message);
+        setError(parsedForm.error.issues[0].message);
         setLoading(false);
         return;
       }
