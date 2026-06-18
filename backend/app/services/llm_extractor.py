@@ -52,7 +52,6 @@ class LLMExtractor:
                     model=self.model_name, contents=prompt_with_schema, config=config
                 )
                 try:
-                    import json
                     raw_text = response.text.strip()
                     if raw_text.startswith("```"):
                         raw_text = raw_text.strip("`").strip()
