@@ -36,20 +36,39 @@ class LessonLLM:
             return f.read()
 
     def _call_sync(self, prompt: str, schema: Any, temperature: float) -> Any:
+        # The new google.genai SDK crashes on nested Pydantic models with $defs
+        # So we remove response_schema from config and append it to the prompt.
         config = types.GenerateContentConfig(
             temperature=temperature,
             response_mime_type="application/json",
-            response_schema=schema,
         )
+        
+        import json
+        prompt_with_schema = (
+            f"{prompt}\n\n"
+            f"You MUST output valid JSON that strictly conforms to this JSON Schema:\n"
+            f"{json.dumps(schema.model_json_schema(), indent=2)}"
+        )
+
         for attempt in range(5):
             try:
                 client = gemini_pool.get_client()
                 resp = client.models.generate_content(
-                    model=self.model_name, contents=prompt, config=config
+                    model=self.model_name, contents=prompt_with_schema, config=config
                 )
-                if resp.parsed is None:
-                    raise ValueError(f"Empty structured output. Raw: {resp.text}")
-                return resp.parsed
+                
+                try:
+                    raw_text = resp.text.strip()
+                    if raw_text.startswith("```"):
+                        raw_text = raw_text.strip("`").strip()
+                        if raw_text.lower().startswith("json"):
+                            raw_text = raw_text[4:].strip()
+                    parsed_json = json.loads(raw_text)
+                    return schema.model_validate(parsed_json)
+                except Exception as parse_e:
+                    logger.warning(f"Failed to parse JSON. Error: {parse_e}\nRaw text: {resp.text}")
+                    raise ValueError(f"Failed to parse structured output: {parse_e}")
+
             except Exception as e:  # noqa: BLE001
                 is_quota = "429" in str(e) or "quota" in str(e).lower()
                 

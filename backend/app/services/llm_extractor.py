@@ -32,17 +32,24 @@ class LLMExtractor:
             return f.read()
 
     def _call_with_retry(self, prompt: str, schema: Any, max_retries: int = 5) -> Any:
+        # The new google.genai SDK crashes on nested Pydantic models with $defs
+        # So we remove response_schema from config and append it to the prompt.
         config = types.GenerateContentConfig(
             temperature=0.0,
             response_mime_type="application/json",
-            response_schema=schema,
+        )
+        
+        prompt_with_schema = (
+            f"{prompt}\n\n"
+            f"You MUST output valid JSON that strictly conforms to this JSON Schema:\n"
+            f"{json.dumps(schema.model_json_schema(), indent=2)}"
         )
 
         for attempt in range(max_retries):
             try:
                 client = gemini_pool.get_client()
                 response = client.models.generate_content(
-                    model=self.model_name, contents=prompt, config=config
+                    model=self.model_name, contents=prompt_with_schema, config=config
                 )
                 try:
                     import json
